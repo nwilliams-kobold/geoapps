@@ -1307,6 +1307,24 @@ def format_labels(x, y, axs, labels=None, aspect="equal", tick_format="%i"):
     axs.set_aspect(aspect)
 
 
+def interval_2_point_log(drillhole, values):
+    """
+    Simple function to de-survey interval to point log
+    """
+    active_cells = np.where(~np.isnan(values))[0]
+    start = drillhole.get_data("FROM")[0].values[active_cells]
+    end = drillhole.get_data("TO")[0].values[active_cells]
+    point_values = np.ones(drillhole.n_vertices) * np.nan
+    collar = np.c_[drillhole.collar["x"], drillhole.collar["y"], drillhole.collar["z"]]
+    verts_dist = np.linalg.norm(collar - drillhole.vertices, axis=1)
+
+    for ii in range(start.shape[0]):
+        ind = (verts_dist > start[ii]) & (verts_dist < end[ii])
+        point_values[ind] = values[active_cells[ii]]
+
+    return point_values
+
+
 # def refine_cells(self, indices):
 #     """
 #

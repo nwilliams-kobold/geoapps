@@ -20,6 +20,7 @@ from geoapps.utils import random_sampling, hex_to_rgb
 from sklearn.cluster import KMeans
 from scipy.spatial import cKDTree
 import pandas as pd
+from geoh5py.data import ReferencedData
 
 
 class Clustering(ScatterPlots):
@@ -75,6 +76,7 @@ class Clustering(ScatterPlots):
             ],
             description="Analytics",
         )
+
         self.input_box = VBox([self.plotting_options])
         # self.heatmap_fig = go.FigureWidget()
         # self.heatmap_plot = interactive_output(
@@ -109,7 +111,7 @@ class Clustering(ScatterPlots):
         self.channels_plot_options.observe(self.make_hist_plot, names="value")
         self.channels_plot_options.observe(self.make_box_plot, names="value")
         self.trigger.description = "Run Clustering"
-
+        self.reference_filter_value.observe(self.update_choices, names="value")
         for ii in range(self.n_clusters.max):
             self.color_pickers[ii] = ColorPicker(
                 concise=False, description=("Color"), value=colors[ii],
@@ -143,6 +145,8 @@ class Clustering(ScatterPlots):
                             [
                                 self.objects,
                                 self.data,
+                                self.reference_filter,
+                                self.reference_filter_value,
                                 self.n_clusters,
                                 self.refresh_clusters,
                                 self.groups_options,
@@ -293,6 +297,16 @@ class Clustering(ScatterPlots):
         self._mapping = None
         self._indices = None
 
+        obj, _ = self.get_selected_entities()
+        ref_data = [""]
+        for child in obj.children:
+            if isinstance(child, ReferencedData):
+                ref_data += [child.name]
+
+        self.reference_filter.options = ref_data
+        self.reference_filter_value.options = []
+        self.filter = None
+
         if self.n_values is not None:
             self.downsampling.max = self.n_values
             self.downsampling.value = np.min([5000, self.n_values])
@@ -321,10 +335,11 @@ class Clustering(ScatterPlots):
             )
             values += [vals]
 
+        values = np.vstack(values).T
         for val in [2, 4, 8, 16, 32, self.n_clusters.value]:
             self.refresh_clusters.description = f"Running ... {val}"
-            if val not in self.clusters.keys():
-                kmeans = KMeans(n_clusters=val, random_state=0).fit(np.vstack(values).T)
+            if val not in self.clusters.keys() and values.shape[0] > val:
+                kmeans = KMeans(n_clusters=val, random_state=0).fit(values)
                 self.clusters[val] = kmeans
 
         cluster_ids = self.clusters[self.n_clusters.value].labels_.astype(float)
@@ -640,7 +655,7 @@ class Clustering(ScatterPlots):
         self.refresh_trigger.value = False
 
         for channel in self.data.value:
-            self.get_channel(channel)
+            self.get_channel(channel, ignore=ReferencedData)
 
         for key in list(self.data_channels.keys()):
             if key not in list(self.data.value) + ["kmeans"]:
@@ -653,6 +668,7 @@ class Clustering(ScatterPlots):
             for field in fields:
                 vals = self.data_channels[field].copy()
                 nns = ~np.isnan(vals)
+
                 if field not in self.scalings.keys():
                     self.scalings[field] = IntSlider(
                         min=1,

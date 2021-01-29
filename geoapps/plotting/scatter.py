@@ -14,9 +14,11 @@ from ipywidgets import (
     Layout,
     Label,
 )
-from geoapps.utils import symlog, random_sampling
+from geoapps.utils import symlog, random_sampling, interval_2_point_log
 from geoapps.selection import ObjectDataSelection
 from geoapps.plotting import normalize, format_axis
+from geoh5py.objects import Drillhole
+from geoh5py.data import ReferencedData
 
 
 class ScatterPlots(ObjectDataSelection):
@@ -50,6 +52,13 @@ class ScatterPlots(ObjectDataSelection):
         self._add_groups = True
         self.custom_colormap = []
         self._indices = None
+        self._reference_filter = Dropdown(
+            description="Reference Data Filter", style={"description_width": "initial"}
+        )
+        self._reference_filter_value = Dropdown(description="Value")
+        self.reference_filter.observe(self.update_filter_values, names="value")
+        self.reference_filter_value.observe(self.update_filter, names="value")
+        self.filter = None
 
         def channel_bounds_setter(caller):
             self.set_channel_bounds(caller["owner"].name)
@@ -241,6 +250,8 @@ class ScatterPlots(ObjectDataSelection):
                 [
                     self.project_panel,
                     HBox([self.objects, self.data]),
+                    self.reference_filter,
+                    self.reference_filter_value,
                     HBox([Label("Downsampling:"), self.downsampling]),
                     self.axes_options,
                     self.trigger,
@@ -251,6 +262,8 @@ class ScatterPlots(ObjectDataSelection):
                 [
                     self.project_panel,
                     HBox([self.objects, self.data]),
+                    self.reference_filter,
+                    self.reference_filter_value,
                     VBox([Label("Downsampling"), self.downsampling]),
                     self.axes_options,
                     self.trigger,
@@ -342,6 +355,16 @@ class ScatterPlots(ObjectDataSelection):
         :obj:`ipywidgets.IntSlider`
         """
         return self._downsampling
+
+    @property
+    def reference_filter(self):
+        """ipywidgets.Dropdown()"""
+        return self._reference_filter
+
+    @property
+    def reference_filter_value(self):
+        """ipywidgets.Dropdown()"""
+        return self._reference_filter_value
 
     @property
     def refresh_trigger(self):
@@ -531,7 +554,7 @@ class ScatterPlots(ObjectDataSelection):
             self.panels[self.axes_pannels.value],
         ]
 
-    def get_channel(self, channel):
+    def get_channel(self, channel, ignore=None):
         obj, _ = self.get_selected_entities()
 
         if channel is None:
@@ -539,9 +562,18 @@ class ScatterPlots(ObjectDataSelection):
 
         if channel not in self.data_channels.keys():
 
-            if obj.get_data(channel):
-                values = np.asarray(obj.get_data(channel)[0].values, dtype=float).copy()
+            data = obj.get_data(channel)
+
+            if data:
+                if ignore is not None and isinstance(data[0], ignore):
+                    return
+
+                values = np.asarray(data[0].values, dtype=float).copy()
                 values[(values > 1e-38) * (values < 2e-38)] = np.nan
+
+                if isinstance(obj, Drillhole) and data[0].association.name == "CELL":
+                    values = interval_2_point_log(obj, values)
+
             elif channel == "Z":
                 # Check number of points
                 if hasattr(obj, "centroids"):
@@ -551,9 +583,15 @@ class ScatterPlots(ObjectDataSelection):
             else:
                 return
 
-            self.data_channels[channel] = values
+            self.data_channels[channel] = values.copy()
 
-        return self.data_channels[channel].copy()
+        else:
+            values = self.data_channels[channel].copy()
+
+        if self.filter is not None:
+            values[self.filter] = np.nan
+
+        return values
 
     def set_channel_bounds(self, name):
         """
@@ -843,12 +881,48 @@ class ScatterPlots(ObjectDataSelection):
         )
         self.refresh_trigger.value = refresh_plot
 
+    def update_filter_values(self, _):
+        obj, _ = self.get_selected_entities()
+
+        if obj.get_data(self.reference_filter.value):
+
+            ref_data = obj.get_data(self.reference_filter.value)[0]
+            self.reference_filter_value.options = list(ref_data.value_map.map.values())
+            self.filter = None
+
+    def update_filter(self, _):
+        obj, _ = self.get_selected_entities()
+
+        if obj.get_data(self.reference_filter.value):
+
+            ref_data = obj.get_data(self.reference_filter.value)[0]
+
+            values = np.asarray(ref_data.values, dtype=float).copy()
+            values[(values > 1e-38) * (values < 2e-38)] = np.nan
+
+            if isinstance(obj, Drillhole) and ref_data.association.name == "CELL":
+                values = interval_2_point_log(obj, values)
+
+            for key, value in ref_data.value_map.map.items():
+                if value == self.reference_filter_value.value:
+                    self.filter = values != key
+
     def update_objects(self, _):
         self.data_channels = {}
         self.downsampling.max = self.n_values
         self.downsampling.value = np.min([5000, self.n_values])
         self._indices = None
         self.update_downsampling(None, refresh_plot=False)
+
+        obj, _ = self.get_selected_entities()
+        ref_data = [""]
+        for child in obj.children:
+            if isinstance(child, ReferencedData):
+                ref_data += [child.name]
+
+        self.reference_filter.options = ref_data
+        self.reference_filter_value.options = []
+        self.filter = None
 
     def write_html(self):
         self.crossplot_fig.write_html(

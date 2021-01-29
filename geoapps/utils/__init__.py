@@ -23,4 +23,5 @@ from .utils import (
     treemesh_2_octree,
     random_sampling,
     hex_to_rgb,
+    interval_2_point_log,
 )
