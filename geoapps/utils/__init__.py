@@ -24,4 +24,5 @@ from .utils import (
     random_sampling,
     hex_to_rgb,
     interval_2_point_log,
+    colors,
 )
