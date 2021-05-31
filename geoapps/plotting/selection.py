@@ -1,20 +1,20 @@
-import re
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
+
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
 from geoh5py.objects import Curve, Grid2D, Points, Surface
-from ipywidgets import (
-    FloatSlider,
-    FloatText,
-    VBox,
-    HBox,
-    ToggleButton,
-    Label,
-    Layout,
-)
-from geoapps.utils import rotate_xy
-from geoapps.selection import ObjectDataSelection
+from ipywidgets import FloatSlider, FloatText, HBox, Label, Layout, ToggleButton, VBox
+
 from geoapps.plotting import plot_plan_data_selection
+from geoapps.selection import ObjectDataSelection
+from geoapps.utils.utils import input_string_2_float, rotate_xy
 
 
 class PlotSelection2D(ObjectDataSelection):
@@ -24,7 +24,7 @@ class PlotSelection2D(ObjectDataSelection):
 
     defaults = {
         "h5file": "../../assets/FlinFlon.geoh5",
-        "objects": "Gravity_Magnetics_drape60m",
+        "objects": "{538a7eb1-2218-4bec-98cc-0a759aa0ef4f}",
         "data": "Airborne_TMI",
     }
 
@@ -37,32 +37,39 @@ class PlotSelection2D(ObjectDataSelection):
             min=-90,
             max=90,
             value=0,
-            steps=5,
+            step=5,
             description="Azimuth",
             continuous_update=False,
         )
         self._center_x = FloatSlider(
-            min=-100, max=100, steps=10, description="Easting", continuous_update=False,
+            min=-100,
+            max=100,
+            step=10,
+            description="Easting",
+            continuous_update=False,
         )
         self._center_y = FloatSlider(
             min=-100,
             max=100,
-            steps=10,
+            step=10,
             description="Northing",
             continuous_update=False,
             orientation="vertical",
         )
         self._contours = widgets.Text(
-            value="", description="Contours", disabled=False, continuous_update=False,
+            value="",
+            description="Contours",
+            disabled=False,
+            continuous_update=False,
         )
-        self._data_count = Label("Data Count: 0", tooltip="Keep <1500 for speed")
+        self._data_count = Label("Data Count: 0")
         self._resolution = FloatText(
             description="Grid Resolution (m)", style={"description_width": "initial"}
         )
         self._width = FloatSlider(
             min=0,
             max=100,
-            steps=10,
+            step=10,
             value=1000,
             description="Width",
             continuous_update=False,
@@ -70,7 +77,7 @@ class PlotSelection2D(ObjectDataSelection):
         self._height = FloatSlider(
             min=0,
             max=100,
-            steps=10,
+            step=10,
             value=1000,
             description="Height",
             continuous_update=False,
@@ -79,7 +86,6 @@ class PlotSelection2D(ObjectDataSelection):
         self._zoom_extent = ToggleButton(
             value=True,
             description="Zoom on selection",
-            tooltip="Keep plot extent on selection",
             icon="check",
         )
 
@@ -220,21 +226,7 @@ class PlotSelection2D(ObjectDataSelection):
             return
 
         # Parse the contours string
-        if contours != "":
-            vals = re.split(",", contours)
-            cntrs = []
-            for val in vals:
-                if ":" in val:
-                    param = np.asarray(re.split(":", val), dtype="int")
-                    if len(param) == 2:
-                        cntrs += [np.arange(param[0], param[1])]
-                    else:
-                        cntrs += [np.arange(param[0], param[1], param[2])]
-                else:
-                    cntrs += [np.float(val)]
-            contours = np.unique(np.sort(np.hstack(cntrs)))
-        else:
-            contours = None
+        contours = input_string_2_float(contours)
 
         entity, _ = self.get_selected_entities()
         if entity is None:
@@ -307,22 +299,25 @@ class PlotSelection2D(ObjectDataSelection):
         else:
             return
 
+        width = lim_x[1] - lim_x[0]
+        height = lim_y[1] - lim_y[0]
+
         self.refresh.value = False
         self.center_x.min = -np.inf
-        self.center_x.max = lim_x[1]
+        self.center_x.max = lim_x[1] + width * 0.1
         self.center_x.value = np.mean(lim_x)
-        self.center_x.min = lim_x[0]
+        self.center_x.min = lim_x[0] - width * 0.1
 
         self.center_y.min = -np.inf
-        self.center_y.max = lim_y[1]
+        self.center_y.max = lim_y[1] + height * 0.1
         self.center_y.value = np.mean(lim_y)
-        self.center_y.min = lim_y[0]
+        self.center_y.min = lim_y[0] - height * 0.1
 
-        self.width.max = lim_x[1] - lim_x[0]
+        self.width.max = width * 1.2
         self.width.value = self.width.max / 2.0
         self.width.min = 0
 
-        self.height.max = lim_y[1] - lim_y[0]
+        self.height.max = height * 1.2
         self.height.min = 0
         self.height.value = self.height.max / 2.0
         self.refresh.value = True

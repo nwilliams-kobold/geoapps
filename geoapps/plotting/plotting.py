@@ -1,17 +1,20 @@
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
+from copy import copy
+
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
-from copy import copy
 import plotly.graph_objects as go
-from geoh5py.objects import Curve, Grid2D, Points, Surface, BlockModel
-from geoh5py.data import Data
+from geoh5py.data import Data, ReferencedData
+from geoh5py.objects import BlockModel, Curve, Grid2D, Points, Surface
 
-from geoapps.utils import (
-    filter_xy,
-    format_labels,
-    symlog,
-    inv_symlog,
-)
+from geoapps.utils.utils import filter_xy, format_labels, inv_symlog, symlog
 
 
 def normalize(values):
@@ -115,7 +118,9 @@ def plot_plan_data_selection(entity, data, **kwargs):
         map_vals = new_cmap["Value"].copy()
         cmap = colors.ListedColormap(
             np.c_[
-                new_cmap["Red"] / 255, new_cmap["Green"] / 255, new_cmap["Blue"] / 255,
+                new_cmap["Red"] / 255,
+                new_cmap["Green"] / 255,
+                new_cmap["Blue"] / 255,
             ]
         )
         color_norm = colors.BoundaryNorm(map_vals, cmap.N)
@@ -157,7 +162,12 @@ def plot_plan_data_selection(entity, data, **kwargs):
     else:
         x, y = entity.vertices[:, 0], entity.vertices[:, 1]
         if indices is None:
-            indices = filter_xy(x, y, resolution, window=window,)
+            indices = filter_xy(
+                x,
+                y,
+                resolution,
+                window=window,
+            )
         X, Y = x[indices], y[indices]
 
         if data == "Z":
@@ -196,14 +206,14 @@ def plot_plan_data_selection(entity, data, **kwargs):
         ind = ~np.isnan(values.ravel())
         x = X.ravel()[ind]
         y = Y.ravel()[ind]
-        if ind.sum() > 0:
-            format_labels(x, y, axis, **kwargs)
-            axis.set_xlim([x.min(), x.max()])
-            axis.set_ylim([y.min(), y.max()])
-    elif np.any(x) and np.any(y):
+
+    if np.any(x) and np.any(y):
+        width = x.max() - x.min()
+        height = y.max() - y.min()
+
         format_labels(x, y, axis, **kwargs)
-        axis.set_xlim([x.min(), x.max()])
-        axis.set_ylim([y.min(), y.max()])
+        axis.set_xlim([x.min() - width * 0.1, x.max() + width * 0.1])
+        axis.set_ylim([y.min() - height * 0.1, y.max() + height * 0.1])
 
     if (
         "colorbar" in kwargs.keys()
@@ -220,8 +230,16 @@ def plot_plan_data_selection(entity, data, **kwargs):
             if not np.any(entity.get_data(key)):
                 continue
 
+            line_data = entity.get_data(key)[0]
+            if isinstance(line_data, ReferencedData):
+                values = [
+                    key
+                    for key, value in line_data.value_map.map.items()
+                    if value in values
+                ]
+
             for line in values:
-                ind = np.where(entity.get_data(key)[0].values == line)[0]
+                ind = np.where(line_data.values == line)[0]
                 x, y, values = (
                     locations[ind, 0],
                     locations[ind, 1],
@@ -266,7 +284,11 @@ def plot_profile_data_selection(
                 continue
 
             if resolution is not None:
-                dwn_ind = filter_xy(locations[ind, 0], locations[ind, 1], resolution,)
+                dwn_ind = filter_xy(
+                    locations[ind, 0],
+                    locations[ind, 1],
+                    resolution,
+                )
 
                 ind = ind[dwn_ind]
 
@@ -481,7 +503,7 @@ def check_data_type(data):
 #
 #     curves = [
 #         entity.parent.name + "." + entity.name
-#         for entity in workspace.all_objects()
+#         for entity in workspace.objects
 #         if isinstance(entity, Curve)
 #     ]
 #     names = [name for name in sorted(curves)]

@@ -1,31 +1,37 @@
-import re
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
 import os
-import osr
-from ipywidgets import SelectMultiple, VBox, HBox, Text, Textarea, Layout
+import re
+
+import matplotlib.pyplot as plt
 import numpy
+from fiona.transform import transform
 from geoh5py.data import FloatData
 from geoh5py.objects import Curve, Grid2D, Points, Surface
 from geoh5py.workspace import Workspace
+from ipywidgets import HBox, Layout, SelectMultiple, Text, Textarea, VBox
+from osgeo import gdal, osr
+
 from geoapps.base import BaseApplication
-import matplotlib.pyplot as plt
-from fiona.transform import transform
-import gdal
-from geoapps.utils import (
-    export_grid_2_geotiff,
-    geotiff_2_grid,
-)
 from geoapps.plotting import plot_plan_data_selection
+from geoapps.utils.utils import export_grid_2_geotiff, geotiff_2_grid
 
 
 class CoordinateTransformation(BaseApplication):
-    """
-
-    """
+    """"""
 
     defaults = {
         "ga_group_name": "CoordinateTransformation",
         "h5file": "../../assets/FlinFlon.geoh5",
-        "objects": ["Gravity_Magnetics_drape60m", "Data_TEM_pseudo3D"],
+        "objects": [
+            "{538a7eb1-2218-4bec-98cc-0a759aa0ef4f}",
+            "{bb208abb-dc1f-4820-9ea9-b8883e5ff2c6}",
+        ],
         "code_in": "EPSG:26914",
         "code_out": "EPSG:4326",
     }
@@ -90,7 +96,9 @@ class CoordinateTransformation(BaseApplication):
                             )
                             grid = gdal.Open(temp_file)
                             gdal.Warp(
-                                temp_file_out, grid, dstSRS=self.wkt_out.value,
+                                temp_file_out,
+                                grid,
+                                dstSRS=self.wkt_out.value,
                             )
 
                             if count == 0:
@@ -102,12 +110,16 @@ class CoordinateTransformation(BaseApplication):
                                 )
                             else:
                                 _ = geotiff_2_grid(
-                                    temp_work, temp_file_out, grid_object=new_obj
+                                    temp_work, temp_file_out, grid=new_obj
                                 )
 
                             del grid
-                            os.remove(temp_file)
-                            os.remove(temp_file_out)
+                            if os.path.exists(temp_file):
+                                os.remove(temp_file)
+
+                            if os.path.exists(temp_file_out):
+                                os.remove(temp_file_out)
+
                             count += 1
 
                     new_obj.copy(parent=self.ga_group)
@@ -123,10 +135,12 @@ class CoordinateTransformation(BaseApplication):
                     if self.code_in.value == "EPSG:4326":
                         x, y = y, x
 
-                    x2, y2 = transform(self.wkt_in.value, self.wkt_out.value, x, y,)
-
-                    if self.code_out.value == "EPSG:4326":
-                        x2, y2 = y2, x2
+                    x2, y2 = transform(
+                        self.wkt_in.value,
+                        self.wkt_out.value,
+                        x,
+                        y,
+                    )
 
                     new_obj = obj.copy(parent=self.ga_group, copy_children=True)
                     new_obj.vertices = numpy.c_[x2, y2, obj.vertices[:, 2]]
@@ -144,7 +158,9 @@ class CoordinateTransformation(BaseApplication):
                         ax2.set_ylabel("Latitude")
 
             if self.live_link.value:
-                self.live_link_output(self.ga_group)
+                self.live_link_output(
+                    self.export_directory.selected_path, self.ga_group
+                )
             self.workspace.finalize()
 
     @property
@@ -209,11 +225,18 @@ class CoordinateTransformation(BaseApplication):
     def update_objects_list(self):
         if getattr(self, "_workspace", None) is not None:
 
-            self.objects.options = [""] + [
-                obj.name
-                for obj in self._workspace.all_objects()
-                if isinstance(obj, self.object_types)
-            ]
+            if len(self.object_types) > 0:
+                options = [["", None]] + [
+                    [obj.name, obj.uid]
+                    for obj in self._workspace.objects
+                    if isinstance(obj, self.object_types)
+                ]
+            else:
+                options = [["", None]] + [
+                    [value, uid]
+                    for uid, value in self._workspace.list_objects_name.items()
+                ]
+            self.objects.options = options
 
     def set_wkt_in(self, _):
         datasetSRS = osr.SpatialReference()

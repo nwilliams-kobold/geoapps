@@ -1,22 +1,31 @@
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
 import numpy as np
-from matplotlib import collections
-from geoh5py.workspace import Workspace
 from geoh5py.io import H5Writer
-from geoh5py.objects import Grid2D, Curve
-from skimage.feature import canny
-from skimage.transform import probabilistic_hough_line
+from geoh5py.objects import Curve, Grid2D
+from geoh5py.workspace import Workspace
 from ipywidgets import (
     FloatSlider,
     HBox,
     IntSlider,
     Layout,
-    ToggleButton,
     Text,
+    ToggleButton,
     VBox,
     interactive_output,
 )
-from geoapps.utils import filter_xy
+from matplotlib import collections
+from skimage.feature import canny
+from skimage.transform import probabilistic_hough_line
+
 from geoapps.plotting import PlotSelection2D
+from geoapps.utils.formatters import string_name
+from geoapps.utils.utils import filter_xy
 
 
 class EdgeDetectionApp(PlotSelection2D):
@@ -39,12 +48,14 @@ class EdgeDetectionApp(PlotSelection2D):
 
     defaults = {
         "h5file": "../../assets/FlinFlon.geoh5",
-        "objects": "Gravity_Magnetics_drape60m",
+        "objects": "{538a7eb1-2218-4bec-98cc-0a759aa0ef4f}",
         "data": "Airborne_Gxx",
         "resolution": 50,
         "sigma": 0.5,
         "compute": True,
-        "window": {"azimuth": -20,},
+        "window": {
+            "azimuth": -20,
+        },
         "ga_group_name": "Edges",
     }
     object_types = (Grid2D,)
@@ -58,7 +69,11 @@ class EdgeDetectionApp(PlotSelection2D):
             tooltip="Description",
             icon="check",
         )
-        self._export_as = Text(value="Edges", description="Save as:", disabled=False,)
+        self._export_as = Text(
+            value="Edges",
+            description="Save as:",
+            disabled=False,
+        )
         self._line_length = IntSlider(
             min=1,
             max=100,
@@ -100,7 +115,10 @@ class EdgeDetectionApp(PlotSelection2D):
         )
         super().__init__(**kwargs)
 
-        out = interactive_output(self.compute_trigger, {"compute": self.compute},)
+        out = interactive_output(
+            self.compute_trigger,
+            {"compute": self.compute},
+        )
 
         def save_trigger(_):
             self.save_trigger()
@@ -193,7 +211,7 @@ class EdgeDetectionApp(PlotSelection2D):
                 curve.cells = np.vstack(self.trigger.cells).astype("uint32")
 
                 # Remove directly on geoh5
-                project_handle = H5Writer.fetch_h5_handle(self.h5file, entity)
+                project_handle = H5Writer.fetch_h5_handle(self.h5file)
                 base = list(project_handle.keys())[0]
                 obj_handle = project_handle[base]["Objects"]
                 for key in obj_handle[H5Writer.uuid_str(curve.uid)]["Data"].keys():
@@ -205,14 +223,16 @@ class EdgeDetectionApp(PlotSelection2D):
             else:
                 curve = Curve.create(
                     self.workspace,
-                    name=self.export_as.value,
+                    name=string_name(self.export_as.value),
                     vertices=self.trigger.vertices,
                     cells=self.trigger.cells,
                     parent=self.ga_group,
                 )
 
             if self.live_link.value:
-                self.live_link_output(self.ga_group)
+                self.live_link_output(
+                    self.export_directory.selected_path, self.ga_group
+                )
 
             self.workspace.finalize()
 
@@ -319,8 +339,14 @@ class EdgeDetectionApp(PlotSelection2D):
             xy[1::2, 1],
             self.resolution.value,
             window={
-                "center": [self.center_x.value, self.center_y.value,],
-                "size": [self.width.value, self.height.value,],
+                "center": [
+                    self.center_x.value,
+                    self.center_y.value,
+                ],
+                "size": [
+                    self.width.value,
+                    self.height.value,
+                ],
                 "azimuth": self.azimuth.value,
             },
         )
@@ -329,14 +355,21 @@ class EdgeDetectionApp(PlotSelection2D):
             xy[::2, 1],
             self.resolution.value,
             window={
-                "center": [self.center_x.value, self.center_y.value,],
-                "size": [self.width.value, self.height.value,],
+                "center": [
+                    self.center_x.value,
+                    self.center_y.value,
+                ],
+                "size": [
+                    self.width.value,
+                    self.height.value,
+                ],
                 "azimuth": self.azimuth.value,
             },
         )
 
         indices = np.kron(
-            np.any(np.c_[indices_1, indices_2], axis=1), np.ones(2),
+            np.any(np.c_[indices_1, indices_2], axis=1),
+            np.ones(2),
         ).astype(bool)
 
         xy = self.objects.lines[indices, :2]

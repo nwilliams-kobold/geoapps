@@ -1,43 +1,52 @@
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
 import re
-import numpy as np
-from scipy.spatial import cKDTree
-import plotly.graph_objects as go
-import plotly.express as px
-from dask.distributed import Client, get_client
+
 import dask
 import matplotlib.pyplot as plt
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from dask.distributed import Client, get_client
+from geoh5py.data import ReferencedData
+from geoh5py.objects import Curve, Points, Surface
 from geoh5py.workspace import Workspace
-from geoh5py.objects import Points, Curve, Surface
 from ipywidgets import (
+    Box,
     Button,
-    Dropdown,
-    ColorPicker,
-    SelectMultiple,
-    Text,
-    IntSlider,
     Checkbox,
+    ColorPicker,
+    Dropdown,
+    FloatLogSlider,
     FloatSlider,
     FloatText,
-    VBox,
     HBox,
-    Box,
-    ToggleButton,
-    ToggleButtons,
-    interactive_output,
-    FloatLogSlider,
+    IntSlider,
     Label,
     Layout,
+    SelectMultiple,
+    ToggleButton,
+    ToggleButtons,
+    VBox,
+    interactive_output,
 )
-from geoapps.utils import (
+from scipy.spatial import cKDTree
+
+from geoapps.selection import LineOptions, ObjectDataSelection
+from geoapps.utils import geophysical_systems
+from geoapps.utils.utils import (
+    LineDataDerivatives,
+    colors,
     find_value,
-    geophysical_systems,
-    signal_processing_1d,
+    hex_to_rgb,
     rotate_azimuth_dip,
     running_mean,
-    hex_to_rgb,
-    colors,
 )
-from geoapps.selection import ObjectDataSelection, LineOptions
 
 
 class PeakFinder(ObjectDataSelection):
@@ -49,10 +58,17 @@ class PeakFinder(ObjectDataSelection):
         "object_types": Curve,
         "h5file": "../../assets/FlinFlon.geoh5",
         "add_groups": True,
-        "objects": "Data_TEM_pseudo3D",
+        "objects": "{bb208abb-dc1f-4820-9ea9-b8883e5ff2c6}",
         "data": ["Observed"],
-        "model": {"objects": "Inversion_VTEM_Model", "data": "Iteration_7_model"},
-        "lines": {"objects": "Data_TEM_pseudo3D", "data": "Line", "lines": 6073400.0},
+        "model": {
+            "objects": "{2e814779-c35f-4da0-ad6a-39a6912361f9}",
+            "data": "Iteration_7_model",
+        },
+        "lines": {
+            "objects": "{bb208abb-dc1f-4820-9ea9-b8883e5ff2c6}",
+            "data": "Line",
+            "lines": 6073400.0,
+        },
         "boreholes": {"objects": "geochem", "data": "Al2O3"},
         "doi": {"data": "Z"},
         "doi_percent": 60,
@@ -87,7 +103,6 @@ class PeakFinder(ObjectDataSelection):
         self._survey = None
         self._time_groups = None
         self.objects.observe(self.objects_change, names="value")
-        # self.objects.observe(self.update_data_list, names="value")
         self.model_panel = VBox([self.show_model])
         self.show_model.observe(self.show_model_trigger, names="value")
         self.doi_panel = VBox([self.show_doi])
@@ -108,7 +123,7 @@ class PeakFinder(ObjectDataSelection):
         self.model_selection.objects.description = "Surface:"
         self.model_selection.data.description = "Model"
         self.doi_selection.data.description = "DOI Layer"
-        self.scale_panel = VBox([self.scale_button])
+        self.scale_panel = VBox([self.scale_button, self.scale_value])
         self.scale_button.observe(self.scale_update)
         self.channel_selection.observe(self.channel_panel_update, names="value")
         self.channels.observe(self.edit_group, names="value")
@@ -208,10 +223,14 @@ class PeakFinder(ObjectDataSelection):
         self.channel_panel = VBox(
             [
                 self.channel_selection,
-                self.data_channel_options[self.channel_selection.value],
             ]
         )
-        self.system_options = VBox([self.system, self.channel_panel,])
+        self.system_options = VBox(
+            [
+                self.system,
+                self.channel_panel,
+            ]
+        )
 
         self.trigger.on_click(self.trigger_click)
         self.trigger.description = "Export Peaks"
@@ -223,7 +242,13 @@ class PeakFinder(ObjectDataSelection):
         )
         self.ga_group_name.description = "Save As"
         self.visual_parameters = VBox(
-            [self.center, self.width, self.x_label, self.scale_panel, self.markers,]
+            [
+                self.center,
+                self.width,
+                self.x_label,
+                self.scale_panel,
+                self.markers,
+            ]
         )
         self.detection_parameters = VBox(
             [
@@ -249,18 +274,34 @@ class PeakFinder(ObjectDataSelection):
             ],
         )
         self.doi_parameters = VBox(
-            [self.doi_selection.data, self.doi_percent, self.doi_revert,]
+            [
+                self.doi_selection.data,
+                self.doi_percent,
+                self.doi_revert,
+            ]
         )
         self.scatter_parameters = VBox(
-            [self.boreholes.main, self.slice_width, self.boreholes_size,]
+            [
+                self.boreholes.main,
+                self.slice_width,
+                self.boreholes_size,
+            ]
         )
-        self.output_panel = VBox([self.run_all, self.trigger_panel,])
+        self.output_panel = VBox(
+            [
+                self.run_all,
+                self.trigger_panel,
+            ]
+        )
         self._main = VBox(
             [
                 self.project_panel,
                 HBox(
                     [
-                        VBox([self.main, self.flip_sign], layout=Layout(width="50%"),),
+                        VBox(
+                            [self.main, self.flip_sign],
+                            layout=Layout(width="50%"),
+                        ),
                         Box(
                             children=[self.lines.main],
                             layout=Layout(
@@ -708,10 +749,12 @@ class PeakFinder(ObjectDataSelection):
         """
         if getattr(self, "_scale_button", None) is None:
             self._scale_button = ToggleButtons(
-                options=["linear", "symlog",],
+                options=[
+                    "linear",
+                    "symlog",
+                ],
                 value="symlog",
                 description="Y-axis scaling",
-                orientation="vertical",
             )
 
         return self._scale_button
@@ -725,7 +768,7 @@ class PeakFinder(ObjectDataSelection):
             self._scale_value = FloatLogSlider(
                 min=-18,
                 max=10,
-                step=0.5,
+                step=0.1,
                 base=10,
                 value=1e-2,
                 description="Linear threshold",
@@ -741,7 +784,10 @@ class PeakFinder(ObjectDataSelection):
         :obj:`ipywidgets.ToggleButton`: Display the borehole panel
         """
         if getattr(self, "_show_borehole", None) is None:
-            self._show_borehole = ToggleButton(description="Show Scatter", value=False,)
+            self._show_borehole = ToggleButton(
+                description="Show Scatter",
+                value=False,
+            )
 
         return self._show_borehole
 
@@ -761,7 +807,10 @@ class PeakFinder(ObjectDataSelection):
         :obj:`ipywidgets.ToggleButton`: Display the doi options panel
         """
         if getattr(self, "_show_doi", None) is None:
-            self._show_doi = ToggleButton(description="Show DOI", value=False,)
+            self._show_doi = ToggleButton(
+                description="Show DOI",
+                value=False,
+            )
 
         return self._show_doi
 
@@ -771,7 +820,10 @@ class PeakFinder(ObjectDataSelection):
         :obj:`ipywidgets.ToggleButton`: Display the model plot options panel
         """
         if getattr(self, "_show_model", None) is None:
-            self._show_model = ToggleButton(description="Show model", value=False,)
+            self._show_model = ToggleButton(
+                description="Show model",
+                value=False,
+            )
 
         return self._show_model
 
@@ -806,7 +858,6 @@ class PeakFinder(ObjectDataSelection):
                 value=0,
                 description="Smoothing",
                 continuous_update=False,
-                tooltip="Running mean width",
             )
 
         return self._smoothing
@@ -955,7 +1006,6 @@ class PeakFinder(ObjectDataSelection):
                 options=["Distance", "Easting", "Northing"],
                 value="Distance",
                 description="X-axis label:",
-                orientation="horizontal",
             )
 
         return self._x_label
@@ -964,10 +1014,13 @@ class PeakFinder(ObjectDataSelection):
         """
         Observer of :obj:`geoapps.processing.PeakFinder.channel_selection`: Change data channel panel
         """
-        self.channel_panel.children = [
-            self.channel_selection,
-            self.data_channel_options[self.channel_selection.value],
-        ]
+        try:
+            self.channel_panel.children = [
+                self.channel_selection,
+                self.data_channel_options[self.channel_selection.value],
+            ]
+        except KeyError:
+            self.channel_panel.children = [self.channel_selection]
 
     def set_data(self, _):
         """
@@ -976,12 +1029,14 @@ class PeakFinder(ObjectDataSelection):
         if getattr(self, "survey", None) is not None:
             self.pause_plot_refresh = True
             groups = [p_g.name for p_g in self.survey.property_groups]
-            channels = []  # list(self.data.value)
+            channels = []
 
             # Add all selected data channels | groups once
             for channel in self.data.value:
                 if channel in groups:
-                    for prop in self.survey.get_property_group(channel).properties:
+                    for prop in self.survey.find_or_create_property_group(
+                        name=channel
+                    ).properties:
                         name = self.workspace.get_entity(prop)[0].name
                         if prop not in channels:
                             channels.append(name)
@@ -1012,8 +1067,9 @@ class PeakFinder(ObjectDataSelection):
             self._survey = self.workspace.get_entity(self.objects.value)[0]
             self.update_data_list(None)
             not_tem = True
-
+            self.active_channels = []
             if self.tem_checkbox.value:
+                not_tem = False
                 for aem_system, specs in self.em_system_specs.items():
                     if any(
                         [
@@ -1023,12 +1079,8 @@ class PeakFinder(ObjectDataSelection):
                     ):
                         if aem_system in self.system.options:
                             self.system.value = aem_system
-                            not_tem = False
+                            # not_tem = False
                             break
-
-            self.tem_checkbox.unobserve(self.objects_change, names="value")
-            self.tem_checkbox.value = not_tem is False
-            self.tem_checkbox.observe(self.objects_change, names="value")
 
             if not_tem:
                 self.tem_box.children = [self.tem_checkbox]
@@ -1181,8 +1233,6 @@ class PeakFinder(ObjectDataSelection):
         self.trigger.button_style = "success"
         self.run_all.description = "Process All Lines"
 
-        # Re-assign groups
-
     def regroup(self):
         group_id = -1
         for group in self.lines.anomalies:
@@ -1202,7 +1252,6 @@ class PeakFinder(ObjectDataSelection):
             if match:
                 continue
             group_id += 1
-            # Passed through
             self.time_groups[group_id] = {}
             self.time_groups[group_id]["channels"] = labels
             self.time_groups[group_id]["name"] = "-".join(labels)
@@ -1214,7 +1263,6 @@ class PeakFinder(ObjectDataSelection):
         """
         Observer of :obj:`geoapps.processing.PeakFinder.`:
         """
-        # for group in self.group_list.value:
         if not self.all_anomalies:
             return
 
@@ -1430,10 +1478,10 @@ class PeakFinder(ObjectDataSelection):
                 )
 
         if self.live_link.value:
-            self.live_link_output(points)
+            self.live_link_output(self.export_directory.selected_path, points)
 
             if self.structural_markers.value:
-                self.live_link_output(curves)
+                self.live_link_output(self.export_directory.selected_path, curves)
 
         self.workspace.finalize()
 
@@ -1498,7 +1546,10 @@ class PeakFinder(ObjectDataSelection):
 
         lims = np.searchsorted(
             self.lines.profile.locations_resampled,
-            [(center - width / 2.0), (center + width / 2.0),],
+            [
+                (center - width / 2.0),
+                (center + width / 2.0),
+            ],
         )
         sub_ind = np.arange(lims[0], lims[1])
         y_min, y_max = np.inf, -np.inf
@@ -1511,6 +1562,9 @@ class PeakFinder(ObjectDataSelection):
             if axs is None:
                 self.figure = plt.figure(figsize=(12, 6))
                 axs = plt.subplot()
+
+            if len(self.survey.line_indices) < 2:
+                return
 
             self.lines.profile.values = channel["values"][self.survey.line_indices]
             values = self.lines.profile.values_resampled
@@ -1602,7 +1656,6 @@ class PeakFinder(ObjectDataSelection):
         ]
         axs.set_xlim(x_lims)
         axs.set_ylim([np.max([y_min, min_value]), y_max])
-        # axs.set_title(f"Line: {ind}")
         axs.set_ylabel("Data")
 
         axs.scatter(center, (y_min + y_max) / 2, s=100, c="k", marker="d")
@@ -1655,12 +1708,14 @@ class PeakFinder(ObjectDataSelection):
         """
         Observer of :obj:`geoapps.processing.PeakFinder.`:
         """
-        axs = None
-
         if self.pause_plot_refresh:
             return
 
-        if self.plot_trigger.value and hasattr(self.lines, "profile"):
+        if (
+            self.plot_trigger.value
+            and hasattr(self.lines, "profile")
+            and self.tem_checkbox.value
+        ):
 
             center = self.center.value
             # Loop through groups and find nearest to cursor
@@ -1685,13 +1740,20 @@ class PeakFinder(ObjectDataSelection):
             if any(times):
                 times = np.hstack(times)
 
-                if axs is None:
+                if self.decay_figure is None:
                     self.decay_figure = plt.figure(figsize=(8, 8))
-                    axs = plt.subplot()
 
+                else:
+                    plt.figure(self.decay_figure.number)
+
+                axs = plt.subplot()
                 y = np.exp(times * group["linear_fit"][1] + group["linear_fit"][0])
                 axs.plot(
-                    times, y, "--", linewidth=2, color="k",
+                    times,
+                    y,
+                    "--",
+                    linewidth=2,
+                    color="k",
                 )
                 axs.text(
                     np.mean(times),
@@ -1699,8 +1761,6 @@ class PeakFinder(ObjectDataSelection):
                     f"Tau: {np.abs(group['linear_fit'][1] ** -1.)*1e+3:.2e} msec",
                     color="k",
                 )
-                #                 plt.yscale('symlog', linthreshy=scale_value)
-                #                 axs.set_aspect('equal')
                 axs.scatter(
                     times,
                     group["peak_values"],
@@ -1834,7 +1894,6 @@ class PeakFinder(ObjectDataSelection):
                     [1, "rgb(0,0,0)"],
                 ]
                 self.model_figure.data[1].showscale = False
-            # else:
 
             simplices = self.lines.model_cells.reshape((-1, 3))
 
@@ -1907,7 +1966,7 @@ class PeakFinder(ObjectDataSelection):
         if line_indices is None:
             return
         self.survey.line_indices = line_indices
-        self.lines.anomalies, self.lines.profile = self.client.compute(
+        result = self.client.compute(
             find_anomalies(
                 self.survey.vertices,
                 line_indices,
@@ -1926,6 +1985,12 @@ class PeakFinder(ObjectDataSelection):
                 return_profile=True,
             )
         ).result()
+
+        if len(result) > 0:
+            self.lines.anomalies, self.lines.profile = result
+        else:
+            return
+
         self.pause_plot_refresh = True
 
         if self.previous_line != self.lines.lines.value:
@@ -1959,9 +2024,19 @@ class PeakFinder(ObjectDataSelection):
         """
         Find the vertices for a given line ID
         """
-        indices = np.where(
-            np.asarray(self.survey.get_data(self.lines.data.value)[0].values) == line_id
-        )[0]
+        line_data = self.survey.get_data(self.lines.data.value)[0]
+
+        if isinstance(line_data, ReferencedData):
+            line_id = [
+                key
+                for key, value in line_data.value_map.map.items()
+                if value == line_id
+            ]
+
+            if line_id:
+                line_id = line_id[0]
+
+        indices = np.where(np.asarray(line_data.values) == line_id)[0]
 
         if len(indices) == 0:
             return
@@ -2121,7 +2196,8 @@ class PeakFinder(ObjectDataSelection):
 
                 except IndexError:
                     print(
-                        "Could not find a time channel for the given list of time channels"
+                        "Could not find a time channel for the given list of time channels. "
+                        "Switching to non-tem mode."
                     )
                     self.tem_checkbox.value = False
 
@@ -2145,22 +2221,31 @@ class PeakFinder(ObjectDataSelection):
 
         self.active_channels = [{"name": c} for c in channels]
         d_min, d_max = np.inf, -np.inf
+        thresh_value = np.inf
         for channel in self.active_channels:
-            if self.tem_checkbox.value:
-                gate = int(re.findall(r"\d+", channel["name"])[-1])
-                channel["time"] = (
-                    self.data_channel_options[f"[{gate}]"].children[1].value
-                )
-            channel["values"] = (-1.0) ** self.flip_sign.value * self.data_channels[
-                channel["name"]
-            ].values.copy()
+
+            try:
+                if self.tem_checkbox.value:
+                    gate = int(re.findall(r"\d+", channel["name"])[-1])
+                    channel["time"] = (
+                        self.data_channel_options[f"[{gate}]"].children[1].value
+                    )
+                channel["values"] = (-1.0) ** self.flip_sign.value * self.data_channels[
+                    channel["name"]
+                ].values.copy()
+
+            except KeyError:
+                continue
+            thresh_value = np.min(
+                [thresh_value, np.percentile(np.abs(channel["values"]), 95)]
+            )
             d_min = np.min([d_min, channel["values"].min()])
             d_max = np.max([d_max, channel["values"].max()])
 
         if d_max > -np.inf:
             self.plot_trigger.value = False
             self.min_value.value = d_min
-        # self.set_default_groups(self.channels.options)
+            self.scale_value.value = thresh_value
 
     def show_model_trigger(self, _):
         """
@@ -2213,25 +2298,6 @@ class PeakFinder(ObjectDataSelection):
             self.show_borehole.description = "Show Scatter"
         return
 
-    # def tem_checkbox_click(self, _):
-    #     """
-    #     Observer of :obj:`geoapps.processing.PeakFinder.`:
-    #     """
-    #     if self.tem_checkbox.value:
-    #         self.tem_box.children = [
-    #             self.tem_checkbox,
-    #             self.system_panel,
-    #             self.groups_widget,
-    #             self.decay_panel,
-    #         ]
-    #         self.max_migration.disabled = False
-    #         self.min_channels.disabled = False
-    #     else:
-    #         self.tem_box.children = [self.tem_checkbox]
-    #         self.max_migration.disabled = True
-    #         self.min_channels.disabled = True
-    #     self.set_data(None)
-
 
 @dask.delayed
 def find_anomalies(
@@ -2265,11 +2331,17 @@ def find_anomalies(
 
     :return: list of dict
     """
-    profile = signal_processing_1d(
-        locations[line_indices], None, smoothing=smoothing, residual=use_residual
+    profile = LineDataDerivatives(
+        locations=locations[line_indices], smoothing=smoothing, residual=use_residual
     )
     locs = profile.locations_resampled
-    # normalization = self.em_system_specs[self.system.value]["normalization"]
+
+    if data_normalization == "ppm":
+        data_normalization = [1e-6]
+
+    if locs is None:
+        return {}
+
     xy = np.c_[profile.interp_x(locs), profile.interp_y(locs)]
     angles = np.arctan2(xy[1:, 1] - xy[:-1, 1], xy[1:, 0] - xy[:-1, 0])
     angles = np.r_[angles[0], angles].tolist()
@@ -2287,8 +2359,8 @@ def find_anomalies(
         "time_group": [],
     }
     for cc, channel in enumerate(channels):
-        # if channel not in list(self.channel_to_gate.keys()):
-        #     continue
+        if "values" not in list(channel.keys()):
+            continue
         values = channel["values"][line_indices].copy()
         profile.values = values
         values = profile.values_resampled
@@ -2347,7 +2419,7 @@ def find_anomalies(
                 / (np.abs(np.min([values[start], values[end]])) + 2e-32)
             ) * 100.0
             delta_x = locs[end] - locs[start]
-            amplitude = np.sum(np.abs(values[start:end])) * profile.hx
+            amplitude = np.sum(np.abs(values[start:end])) * profile.sampling
             if (delta_amp > min_amplitude) & (delta_x > min_width):
                 anomalies["channel"] += [cc]
                 anomalies["start"] += [start]
@@ -2417,7 +2489,7 @@ def find_anomalies(
             if all([(gate in in_gate) for gate in group["label"]])
         ]
 
-        if any(time_group):
+        if len(time_group) > 0:
             time_group = np.max(time_group)
         else:
             continue
@@ -2435,15 +2507,12 @@ def find_anomalies(
 
         anomalies["group"][near] = group_id
 
-        #
-        # if len(in_gate) > 0 and len(time_group) > 0:
-
         gates = anomalies["channel"][near]
         cox = anomalies["peak"][near]
         inflx_dwn = anomalies["inflx_dwn"][near]
         inflx_up = anomalies["inflx_up"][near]
         cox_sort = np.argsort(locs[cox])
-        azimuth_near = azimuth[near]
+        azimuth_near = azimuth[cox]
         dip_direction = azimuth[cox[0]]
 
         if cox_sort[-1] < cox_sort[0]:
@@ -2453,7 +2522,9 @@ def find_anomalies(
         skew = (locs[cox][cox_sort[0]] - locs[inflx_up][cox_sort]) / (
             locs[inflx_dwn][cox_sort] - locs[cox][cox_sort[0]]
         )
-        skew[azimuth_near > 180] = 1.0 / (skew[azimuth_near > 180] + 1e-2)
+        skew[azimuth_near[cox_sort] > 180] = 1.0 / (
+            skew[azimuth_near[cox_sort] > 180] + 1e-2
+        )
 
         # Change skew factor from [-100, 1]
         flip_skew = skew < 1
@@ -2539,8 +2610,6 @@ def find_anomalies(
 
         groups += [group]
 
-    # if minimal_output and len(groups["cox"])>0:
-    #     groups["cox"] = np.vstack(groups["cox"]).reshape((-1, 3))
     if return_profile:
         return groups, profile
     else:

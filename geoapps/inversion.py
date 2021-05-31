@@ -1,6 +1,14 @@
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
 import json
-import os
 import multiprocessing
+import os
+
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,23 +16,24 @@ from geoh5py.groups import ContainerGroup
 from geoh5py.objects import BlockModel, Curve, Grid2D, Octree, Points, Surface
 from geoh5py.workspace import Workspace
 from ipywidgets.widgets import (
+    Checkbox,
     Dropdown,
+    FloatText,
     HBox,
+    IntText,
     Label,
     Layout,
     Text,
-    VBox,
-    Checkbox,
-    FloatText,
     ToggleButton,
-    IntText,
+    VBox,
     Widget,
 )
 
 from geoapps.base import BaseApplication
 from geoapps.plotting import PlotSelection2D
-from geoapps.utils import find_value, geophysical_systems, string_2_list
-from geoapps.selection import ObjectDataSelection, LineOptions, TopographyOptions
+from geoapps.selection import LineOptions, ObjectDataSelection, TopographyOptions
+from geoapps.utils import geophysical_systems
+from geoapps.utils.utils import find_value, string_2_list
 
 
 class ChannelOptions:
@@ -34,7 +43,11 @@ class ChannelOptions:
 
     def __init__(self, key, description, **kwargs):
 
-        self._active = Checkbox(value=False, indent=True, description="Active",)
+        self._active = Checkbox(
+            value=False,
+            indent=True,
+            description="Active",
+        )
         self._label = widgets.Text(description=description)
         self._channel_selection = Dropdown(description="Channel <=> Data:")
         self._channel_selection.header = key
@@ -94,12 +107,17 @@ class SensorOptions(ObjectDataSelection):
     def __init__(self, **kwargs):
 
         self._offset = Text(description="(dx, dy, dz) (+ve up)", value="0, 0, 0")
-        self._constant = FloatText(description="Constant elevation (m)",)
+        self._constant = FloatText(
+            description="Constant elevation (m)",
+        )
         if "offset" in kwargs.keys():
             self._offset.value = kwargs["value"]
 
         self._options = widgets.RadioButtons(
-            options=["sensor location + (dx, dy, dz)", "topo + radar + (dx, dy, dz)",],
+            options=[
+                "sensor location + (dx, dy, dz)",
+                "topo + radar + (dx, dy, dz)",
+            ],
             description="Define by:",
         )
 
@@ -137,20 +155,28 @@ class MeshOctreeOptions:
 
     def __init__(self, **kwargs):
         self._core_cell_size = widgets.Text(
-            value="25, 25, 25", description="Smallest cells",
+            value="25, 25, 25",
+            description="Smallest cells",
         )
         self._octree_levels_topo = widgets.Text(
-            value="0, 0, 0, 2", description="Layers below topo",
+            value="0, 0, 0, 2",
+            description="Layers below topo",
         )
         self._octree_levels_obs = widgets.Text(
-            value="5, 5, 5, 5", description="Layers below data",
+            value="5, 5, 5, 5",
+            description="Layers below data",
         )
-        self._depth_core = FloatText(value=500, description="Minimum depth (m)",)
+        self._depth_core = FloatText(
+            value=500,
+            description="Minimum depth (m)",
+        )
         self._padding_distance = widgets.Text(
-            value="0, 0, 0, 0, 0, 0", description="Padding [W,E,N,S,D,U] (m)",
+            value="0, 0, 0, 0, 0, 0",
+            description="Padding [W,E,N,S,D,U] (m)",
         )
         self._max_distance = FloatText(
-            value=1000, description="Max triangulation length",
+            value=1000,
+            description="Max triangulation length",
         )
         self._main = widgets.VBox(
             [
@@ -210,9 +236,18 @@ class Mesh1DOptions:
     """
 
     def __init__(self, **kwargs):
-        self._hz_expansion = FloatText(value=1.05, description="Expansion factor:",)
-        self._hz_min = FloatText(value=10.0, description="Smallest cell (m):",)
-        self._n_cells = FloatText(value=25.0, description="Number of cells:",)
+        self._hz_expansion = FloatText(
+            value=1.05,
+            description="Expansion factor:",
+        )
+        self._hz_min = FloatText(
+            value=10.0,
+            description="Smallest cell (m):",
+        )
+        self._n_cells = FloatText(
+            value=25.0,
+            description="Number of cells:",
+        )
         self.cell_count = Label(f"Max depth: {self.count_cells():.2f} m")
         self.n_cells.observe(self.update_hz_count)
         self.hz_expansion.observe(self.update_hz_count)
@@ -248,23 +283,17 @@ class Mesh1DOptions:
 
     @property
     def hz_expansion(self):
-        """
-
-        """
+        """"""
         return self._hz_expansion
 
     @property
     def hz_min(self):
-        """
-
-        """
+        """"""
         return self._hz_min
 
     @property
     def n_cells(self):
-        """
-
-        """
+        """"""
         return self._n_cells
 
     @property
@@ -281,7 +310,9 @@ class ModelOptions(ObjectDataSelection):
         self._units = "Units"
         self._object_types = (BlockModel, Octree, Surface)
         self._options = widgets.RadioButtons(
-            options=["Model", "Value"], value="Value", disabled=False,
+            options=["Model", "Value"],
+            value="Value",
+            disabled=False,
         )
         self._options.observe(self.update_panel, names="value")
         self.objects.description = "Object"
@@ -352,11 +383,16 @@ class InversionOptions(BaseApplication):
             value="User input (%|data| + floor)",
             disabled=False,
         )
-        self._lower_bound = widgets.Text(value=None, description="Lower bound value",)
-        self._upper_bound = widgets.Text(value=None, description="Upper bound value",)
+        self._lower_bound = widgets.Text(
+            value=None,
+            description="Lower bound value",
+        )
+        self._upper_bound = widgets.Text(
+            value=None,
+            description="Upper bound value",
+        )
         self._ignore_values = widgets.Text(
             value="<0",
-            tooltip="Dummy value",
             description="Data (i.e. <0 = no negatives)",
         )
         self._air_values = widgets.FloatText(
@@ -402,7 +438,8 @@ class InversionOptions(BaseApplication):
         ]
         self.reference_model.options.observe(self.update_ref)
         self._alphas = widgets.Text(
-            value="1, 1, 1, 1", description="Scaling alpha_(s, x, y, z)",
+            value="1, 1, 1, 1",
+            description="Scaling alpha_(s, x, y, z)",
         )
         self._norms = widgets.Text(
             value="2, 2, 2, 2",
@@ -577,9 +614,9 @@ def get_inversion_output(h5file, group_name):
                 out["iteration"] += [np.int(comment["Author"].split("_")[1])]
                 out["time"] += [comment["Date"]]
                 values = json.loads(comment["Text"])
-                out["phi_d"] += [np.float(values["phi_d"])]
-                out["phi_m"] += [np.float(values["phi_m"])]
-                out["beta"] += [np.float(values["beta"])]
+                out["phi_d"] += [float(values["phi_d"])]
+                out["phi_m"] += [float(values["phi_m"])]
+                out["beta"] += [float(values["beta"])]
 
         if len(out["iteration"]) > 0:
             out["iteration"] = np.hstack(out["iteration"])
@@ -593,17 +630,15 @@ def get_inversion_output(h5file, group_name):
 
 
 def plot_convergence_curve(h5file):
-    """
-
-    """
+    """"""
     workspace = Workspace(h5file)
     names = [
-        group.name
-        for group in workspace.all_groups()
-        if isinstance(group, ContainerGroup)
+        group.name for group in workspace.groups if isinstance(group, ContainerGroup)
     ]
     objects = widgets.Dropdown(
-        options=names, value=names[0], description="Inversion Group:",
+        options=names,
+        value=names[0],
+        description="Inversion Group:",
     )
 
     def plot_curve(objects):
@@ -637,14 +672,20 @@ def inversion_defaults():
     Get defaults for gravity, magnetics and EM1D inversions
     """
     defaults = {
-        "units": {"Gravity": "g/cc", "Magnetics": "SI", "EM1D": "S/m"},
+        "units": {"Gravity": "g/cc", "MVI": "SI", "Magnetics": "SI", "EM1D": "S/m"},
         "property": {
             "Gravity": "density",
-            "Magnetics": "effective susceptibility",
+            "MVI": "effective susceptibility",
+            "Magnetics": "susceptibility",
             "EM1D": "conductivity",
         },
-        "reference_value": {"Gravity": 0.0, "Magnetics": 0.0, "EM1D": 1e-3},
-        "starting_value": {"Gravity": 1e-4, "Magnetics": 1e-4, "EM1D": 1e-3},
+        "reference_value": {"Gravity": 0.0, "MVI": 0.0, "Magnetics": 0.0, "EM1D": 1e-3},
+        "starting_value": {
+            "Gravity": 1e-4,
+            "MVI": 1e-4,
+            "Magnetics": 1e-4,
+            "EM1D": 1e-3,
+        },
     }
 
     return defaults
@@ -656,7 +697,7 @@ class InversionApp(PlotSelection2D):
         "add_groups": True,
         "h5file": "../../assets/FlinFlon.geoh5",
         "inducing_field": "60000, 79, 11",
-        "objects": "Gravity_Magnetics_drape60m",
+        "objects": "{538a7eb1-2218-4bec-98cc-0a759aa0ef4f}",
         "data": ["Airborne_TMI"],
         "resolution": 50,
         "window": {
@@ -667,7 +708,10 @@ class InversionApp(PlotSelection2D):
             "azimuth": -20,
         },
         "inversion_parameters": {"norms": "0, 2, 2, 2", "max_iterations": 25},
-        "topography": {"objects": "Topography", "data": "elevation"},
+        "topography": {
+            "objects": "{ab3c2083-6ea8-4d31-9230-7aad3ec09525}",
+            "data": "elevation",
+        },
         "sensor": {"offset": "0, 0, 60", "options": "topo + radar + (dx, dy, dz)"},
         "padding_distance": "1000, 1000, 1000, 1000, 0, 0",
     }
@@ -676,11 +720,10 @@ class InversionApp(PlotSelection2D):
 
         kwargs = self.apply_defaults(**kwargs)
         self.em_system_specs = geophysical_systems.parameters()
-        self._data_count = (Label("Data Count: 0", tooltip="Keep <1500 for speed"),)
+        self._data_count = (Label("Data Count: 0"),)
         self._forward_only = Checkbox(
             value=False,
             description="Forward only",
-            tooltip="Forward response of reference model",
         )
         self._inducing_field = widgets.Text(
             description="Inducing Field [Amp, Inc, Dec]",
@@ -690,14 +733,13 @@ class InversionApp(PlotSelection2D):
         )
         self._starting_channel = (IntText(value=None, description="Starting Channel"),)
         self._system = Dropdown(
-            options=["Magnetics", "Gravity"] + list(self.em_system_specs.keys()),
+            options=["MVI", "Magnetics", "Gravity"] + list(self.em_system_specs.keys()),
             description="Survey Type: ",
         )
         self._write = ToggleButton(
             value=False,
             description="Write input",
             button_style="warning",
-            tooltip="Write json input file",
             icon="check",
         )
         self.data_channel_choices = widgets.Dropdown()
@@ -795,44 +837,32 @@ class InversionApp(PlotSelection2D):
 
     @property
     def data_count(self):
-        """
-
-        """
+        """"""
         return self._data_count
 
     @property
     def forward_only(self):
-        """
-
-        """
+        """"""
         return self._forward_only
 
     @property
     def inducing_field(self):
-        """
-
-        """
+        """"""
         return self._inducing_field
 
     @property
     def run(self):
-        """
-
-        """
+        """"""
         return self._run
 
     @property
     def starting_channel(self):
-        """
-
-        """
+        """"""
         return self._starting_channel
 
     @property
     def system(self):
-        """
-
-        """
+        """"""
         return self._system
 
     @property
@@ -872,17 +902,13 @@ class InversionApp(PlotSelection2D):
 
     @property
     def write(self):
-        """
-
-        """
+        """"""
         return self._write
 
     def run_trigger(self, _):
-        """
-
-        """
+        """"""
         if self.run.value:
-            if self.system.value in ["Gravity", "Magnetics"]:
+            if self.system.value in ["Gravity", "MVI", "Magnetics"]:
                 os.system(
                     "start cmd.exe @cmd /k "
                     + 'python -m geoapps.pf_inversion "'
@@ -901,9 +927,9 @@ class InversionApp(PlotSelection2D):
         """
         Change the application on change of system
         """
-        if self.system.value in ["Magnetics", "Gravity"]:
+        if self.system.value in ["MVI", "Magnetics", "Gravity"]:
             start_channel = 0
-            if self.system.value == "Magnetics":
+            if self.system.value in ["MVI", "Magnetics"]:
                 data_type_list = ["tmi", "bxx", "bxy", "bxz", "byy", "byz", "bzz"]
                 labels = ["tmi", "bxx", "bxy", "bxz", "byy", "byz", "bzz"]
 
@@ -938,7 +964,6 @@ class InversionApp(PlotSelection2D):
             self.inversion_parameters.ignore_values.value = "-99999"
             self.inversion_parameters.air_values.disabled = False
             self.inversion_parameters.air_values.value = 0
-            self.inversion_parameters.max_iterations.value = 25
 
         else:
             tx_offsets = self.em_system_specs[self.system.value]["tx_offsets"]
@@ -984,28 +1009,24 @@ class InversionApp(PlotSelection2D):
             self.inversion_parameters.ignore_values.value = "<0"
             self.inversion_parameters.air_values.disabled = True
             self.inversion_parameters.air_values.value = 1e-8
-            self.inversion_parameters.max_iterations.value = 10
+
             # Switch mesh options
             self.inversion_parameters._mesh = self.mesh_1D
             self.inversion_parameters.inversion_options["mesh"] = self.mesh_1D.main
             flag = "EM1D"
 
-        self.inversion_parameters.reference_model.value.description = inversion_defaults()[
-            "units"
-        ][
-            flag
-        ]
+        self.inversion_parameters.reference_model.value.description = (
+            inversion_defaults()["units"][flag]
+        )
         self.inversion_parameters.reference_model.value.value = inversion_defaults()[
             "reference_value"
         ][flag]
         self.inversion_parameters.reference_model.description.value = (
             "Reference " + inversion_defaults()["property"][flag]
         )
-        self.inversion_parameters.starting_model.value.description = inversion_defaults()[
-            "units"
-        ][
-            flag
-        ]
+        self.inversion_parameters.starting_model.value.description = (
+            inversion_defaults()["units"][flag]
+        )
         self.inversion_parameters.starting_model.value.value = inversion_defaults()[
             "starting_value"
         ][flag]
@@ -1023,13 +1044,17 @@ class InversionApp(PlotSelection2D):
             entity = self.workspace.get_entity(self.objects.value)[0]
             if channel.value is None or not entity.get_data(channel.value):
                 data_widget.children[0].value = False
-                if self.system.value in ["Magnetics", "Gravity"]:
+                if self.system.value in ["MVI", "Magnetics", "Gravity"]:
                     data_widget.children[3].value = "0, 1"
             else:
                 data_widget.children[0].value = True
-                if self.system.value in ["Magnetics", "Gravity"]:
+                if self.system.value in ["MVI", "Magnetics", "Gravity"]:
                     values = entity.get_data(channel.value)[0].values
-                    if values is not None and isinstance(values[0], float):
+                    if values is not None and values.dtype in [
+                        np.float32,
+                        np.float64,
+                        np.int32,
+                    ]:
                         data_widget.children[
                             3
                         ].value = f"0, {np.percentile(np.abs(values[np.abs(values) > 2e-18]), 5):.2f}"
@@ -1063,7 +1088,7 @@ class InversionApp(PlotSelection2D):
 
             data_channel_options[key] = channel_options.main
 
-            if self.system.value not in ["Magnetics", "Gravity"]:
+            if self.system.value not in ["MVI", "Magnetics", "Gravity"]:
                 data_channel_options[key].children[1].value = channel
             else:
                 data_channel_options[key].children[1].layout.visibility = "hidden"
@@ -1081,7 +1106,7 @@ class InversionApp(PlotSelection2D):
         self.update_component_panel(None)
 
         if (
-            self.system.value not in ["Magnetics", "Gravity"]
+            self.system.value not in ["MVI", "Magnetics", "Gravity"]
             and self.em_system_specs[self.system.value]["type"] == "frequency"
         ):
             self.inversion_parameters.option_choices.options = list(
@@ -1097,7 +1122,7 @@ class InversionApp(PlotSelection2D):
         self.write.button_style = "warning"
         self.run.button_style = "danger"
 
-        if self.system.value == "Magnetics":
+        if self.system.value in ["MVI", "Magnetics"]:
             self.survey_type_panel.children = [self.system, self.inducing_field]
         else:
             self.survey_type_panel.children = [self.system]
@@ -1139,7 +1164,9 @@ class InversionApp(PlotSelection2D):
                 if component in groups:
                     data_list += [
                         self.workspace.get_entity(data)[0].name
-                        for data in entity.get_property_group(component).properties
+                        for data in entity.find_or_create_property_group(
+                            name=component
+                        ).properties
                     ]
                 elif component in entity.get_data_list():
                     data_list += [component]
@@ -1232,14 +1259,16 @@ class InversionApp(PlotSelection2D):
             "out_group": self.inversion_parameters.output_name.value,
             "workspace": os.path.abspath(self.h5file),
             "save_to_geoh5": os.path.abspath(self.h5file),
+            "mesh": "Mesh",
         }
-        if self.system.value in ["Gravity", "Magnetics"]:
+        if self.system.value in ["Gravity", "MVI", "Magnetics"]:
             input_dict["inversion_type"] = self.system.value.lower()
 
-            if input_dict["inversion_type"] == "magnetics":
+            if input_dict["inversion_type"] in ["mvi", "magnetics"]:
                 input_dict["inducing_field_aid"] = string_2_list(
                     self.inducing_field.value
                 )
+
             # Octree mesh parameters
             input_dict["core_cell_size"] = string_2_list(
                 self.mesh_octree.core_cell_size.value
@@ -1270,12 +1299,14 @@ class InversionApp(PlotSelection2D):
                 self.mesh_1D.hz_expansion.value,
                 self.mesh_1D.n_cells.value,
             ]
+            input_dict["uncertainty_mode"] = self.inversion_parameters.uncert_mode.value
+
         input_dict["chi_factor"] = self.inversion_parameters.chi_factor.value
         input_dict["max_iterations"] = self.inversion_parameters.max_iterations.value
         input_dict[
             "max_cg_iterations"
         ] = self.inversion_parameters.max_cg_iterations.value
-
+        input_dict
         input_dict["n_cpu"] = self.inversion_parameters.n_cpu.value
         input_dict["max_ram"] = self.inversion_parameters.max_ram.value
 
@@ -1304,20 +1335,23 @@ class InversionApp(PlotSelection2D):
         if ref_type == "model":
             input_dict["reference_model"] = {
                 ref_type: {
-                    self.inversion_parameters.reference_model.objects.value: self.inversion_parameters.reference_model.data.value
+                    str(
+                        self.inversion_parameters.reference_model.objects.value
+                    ): self.inversion_parameters.reference_model.data.value
                 }
             }
         else:
             input_dict["reference_model"] = {
                 ref_type: self.inversion_parameters.reference_model.value.value
             }
-
         start_type = self.inversion_parameters.starting_model.options.value.lower()
 
         if start_type == "model":
             input_dict["starting_model"] = {
                 start_type: {
-                    self.inversion_parameters.starting_model.objects.value: self.inversion_parameters.starting_model.data.value
+                    str(
+                        self.inversion_parameters.starting_model.objects.value
+                    ): self.inversion_parameters.starting_model.data.value
                 }
             }
         else:
@@ -1333,7 +1367,9 @@ class InversionApp(PlotSelection2D):
             if susc_type == "model":
                 input_dict["susceptibility_model"] = {
                     susc_type: {
-                        self.inversion_parameters.susceptibility_model.objects.value: self.inversion_parameters.susceptibility_model.data.value
+                        str(
+                            self.inversion_parameters.susceptibility_model.objects.value
+                        ): self.inversion_parameters.susceptibility_model.data.value
                     }
                 }
             else:
@@ -1360,7 +1396,7 @@ class InversionApp(PlotSelection2D):
 
         input_dict["data"] = {}
         input_dict["data"]["type"] = "GA_object"
-        input_dict["data"]["name"] = self.objects.value
+        input_dict["data"]["name"] = str(self.objects.value)
 
         if hasattr(self.data_channel_choices, "data_channel_options"):
             channel_param = {}
@@ -1381,12 +1417,12 @@ class InversionApp(PlotSelection2D):
                     data_widget.children[4].value
                 )
 
-                if self.system.value not in ["Gravity", "Magnetics"]:
+                if self.system.value not in ["Gravity", "MVI", "Magnetics"]:
                     channel_param[key]["value"] = string_2_list(
                         data_widget.children[1].value
                     )
                 if (
-                    self.system.value in ["Gravity", "Magnetics"]
+                    self.system.value in ["Gravity", "MVI", "Magnetics"]
                     and self.azimuth.value != 0
                     and key not in ["tmi", "gz"]
                 ):
@@ -1397,8 +1433,6 @@ class InversionApp(PlotSelection2D):
                     return
 
             input_dict["data"]["channels"] = channel_param
-
-        input_dict["uncertainty_mode"] = self.inversion_parameters.uncert_mode.value
 
         if self.sensor.options.value == "sensor location + (dx, dy, dz)":
             input_dict["receivers_offset"] = {
@@ -1416,12 +1450,12 @@ class InversionApp(PlotSelection2D):
             else:
                 input_dict["topography"] = {
                     "GA_object": {
-                        "name": self.topography.objects.value,
+                        "name": str(self.topography.objects.value),
                         "data": self.topography.data.value,
                     }
                 }
         elif self.topography.options.value == "Relative to Sensor":
-            input_dict["topography"] = {"drapped": self.topography.offset.value}
+            input_dict["topography"] = {"draped": self.topography.offset.value}
         else:
             input_dict["topography"] = {"constant": self.topography.constant.value}
 

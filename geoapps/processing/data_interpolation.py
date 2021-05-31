@@ -1,20 +1,29 @@
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
 import numpy as np
-from scipy.spatial import cKDTree
-from scipy.interpolate import LinearNDInterpolator
-import discretize
+from discretize.utils import mesh_utils
 from geoh5py.objects import BlockModel, ObjectBase
 from geoh5py.workspace import Workspace
 from ipywidgets import (
     Dropdown,
-    Text,
     FloatText,
-    VBox,
     HBox,
-    ToggleButton,
     Label,
     RadioButtons,
+    Text,
+    ToggleButton,
+    VBox,
 )
+from scipy.interpolate import LinearNDInterpolator
+from scipy.spatial import cKDTree
+
 from geoapps.selection import ObjectDataSelection, TopographyOptions
+from geoapps.utils.utils import weighted_average
 
 
 class DataInterpolation(ObjectDataSelection):
@@ -25,7 +34,7 @@ class DataInterpolation(ObjectDataSelection):
     defaults = {
         "select_multiple": True,
         "h5file": "../../assets/FlinFlon.geoh5",
-        "objects": "Inversion_VTEM_Model",
+        "objects": "{2e814779-c35f-4da0-ad6a-39a6912361f9}",
         "data": ["Iteration_7_model"],
         "core_cell_size": "50, 50, 50",
         "depth_core": 500,
@@ -36,12 +45,15 @@ class DataInterpolation(ObjectDataSelection):
         "new_grid": "InterpGrid",
         "no_data_value": 1e-8,
         "out_mode": "To Object",
-        "out_object": "O2O_Interp_25m",
+        "out_object": "{7450be38-1327-4336-a9e4-5cff587b6715}",
         "padding_distance": "0, 0, 0, 0, 0, 0",
         "skew_angle": 0,
         "skew_factor": 1.0,
         "space": "Log",
-        "topography": {"objects": "Topography", "data": "Z"},
+        "topography": {
+            "objects": "{ab3c2083-6ea8-4d31-9230-7aad3ec09525}",
+            "data": "Z",
+        },
     }
 
     def __init__(self, use_defaults=True, **kwargs):
@@ -49,30 +61,49 @@ class DataInterpolation(ObjectDataSelection):
         if use_defaults:
             kwargs = self.apply_defaults(**kwargs)
 
-        self._core_cell_size = Text(description="Smallest cells",)
-        self._depth_core = FloatText(description="Core depth (m)",)
-        self._expansion_fact = FloatText(description="Expansion factor",)
-        self._max_distance = FloatText(description="Maximum distance (m)",)
-        self._max_depth = FloatText(description="Maximum depth (m)",)
-        self._method = RadioButtons(options=["Nearest", "Linear", "Inverse Distance"],)
-        self._new_grid = Text(description="Name",)
+        self._core_cell_size = Text(
+            description="Smallest cells",
+        )
+        self._depth_core = FloatText(
+            description="Core depth (m)",
+        )
+        self._expansion_fact = FloatText(
+            description="Expansion factor",
+        )
+        self._max_distance = FloatText(
+            description="Maximum distance (m)",
+        )
+        self._max_depth = FloatText(
+            description="Maximum depth (m)",
+        )
+        self._method = RadioButtons(
+            options=["Nearest", "Linear", "Inverse Distance"],
+        )
+        self._new_grid = Text(
+            description="Name",
+        )
         self._no_data_value = FloatText()
-        self._out_mode = RadioButtons(options=["To Object", "Create 3D Grid"],)
+        self._out_mode = RadioButtons(
+            options=["To Object", "Create 3D Grid"],
+        )
         self._out_object = Dropdown()
-        self._padding_distance = Text(description="Pad Distance (W, E, N, S, D, U)",)
-        self._skew_angle = FloatText(description="Azimuth (d.dd)",)
-        self._skew_factor = FloatText(description="Factor (>0)",)
+        self._padding_distance = Text(
+            description="Pad Distance (W, E, N, S, D, U)",
+        )
+        self._skew_angle = FloatText(
+            description="Azimuth (d.dd)",
+        )
+        self._skew_factor = FloatText(
+            description="Factor (>0)",
+        )
         self._space = RadioButtons(options=["Linear", "Log"])
-        self._xy_extent = Dropdown(description="Object hull",)
+        self._xy_extent = Dropdown(
+            description="Object hull",
+        )
         self._xy_reference = Dropdown(
             description="Lateral Extent", style={"description_width": "initial"}
         )
-
-        def object_pick(_):
-            self.object_pick()
-
-        self.objects.observe(object_pick, names="value")
-
+        self.objects.observe(self.object_pick, names="value")
         self.method_skew = VBox(
             [Label("Skew parameters"), self.skew_angle, self.skew_factor]
         )
@@ -102,7 +133,7 @@ class DataInterpolation(ObjectDataSelection):
         self.trigger.description = "Interpolate"
         self._topography = TopographyOptions()
         self.topography.offset.disabled = True
-        self.topography.options.options = ["Object", "Constant", "None"]
+        self.topography.options.options = ["None", "Object", "Constant"]
 
         if getattr(self, "_workspace", None) is not None:
             self.topography.workspace = self._workspace
@@ -123,7 +154,12 @@ class DataInterpolation(ObjectDataSelection):
         self.parameters = {
             "Method": self.method_panel,
             "Scaling": self.space,
-            "Horizontal Extent": VBox([self.max_distance, self.xy_extent,]),
+            "Horizontal Extent": VBox(
+                [
+                    self.max_distance,
+                    self.xy_extent,
+                ]
+            ),
             "Vertical Extent": VBox([self.topography.main, self.max_depth]),
             "No-data-value": self.no_data_value,
         }
@@ -301,17 +337,17 @@ class DataInterpolation(ObjectDataSelection):
 
         value = self.out_object.value
         self.out_object.options = self.objects.options
-        if value in self.out_object.options:
+        if value in list(dict(self.out_object.options).values()):
             self.out_object.value = value
 
         value = self.xy_reference.value
         self.xy_reference.options = self.objects.options
-        if value in self.xy_reference.options:
+        if value in list(dict(self.xy_reference.options).values()):
             self.xy_reference.value = value
 
         value = self.xy_extent.value
         self.xy_extent.options = self.objects.options
-        if value in self.xy_extent.options:
+        if value in list(dict(self.xy_extent.options).values()):
             self.xy_extent.value = value
 
     def method_update(self, _):
@@ -344,6 +380,9 @@ class DataInterpolation(ObjectDataSelection):
         else:
             return
 
+        if len(self.data.value) == 0:
+            print("No data selected")
+            return
         # Create a tree for the input mesh
         tree = cKDTree(xyz)
 
@@ -360,6 +399,7 @@ class DataInterpolation(ObjectDataSelection):
 
         else:
 
+            ref_in = None
             for entity in self._workspace.get_entity(self.xy_reference.value):
                 if isinstance(entity, ObjectBase):
                     ref_in = entity
@@ -368,6 +408,11 @@ class DataInterpolation(ObjectDataSelection):
                 xyz_ref = ref_in.centroids
             elif hasattr(ref_in, "vertices"):
                 xyz_ref = ref_in.vertices
+            else:
+                print(
+                    "No object selected for 'Lateral Extent'. Defaults to input object."
+                )
+                xyz_ref = xyz
 
             # Find extent of grid
             h = np.asarray(self.core_cell_size.value.split(",")).astype(float).tolist()
@@ -380,13 +425,15 @@ class DataInterpolation(ObjectDataSelection):
 
             # Use discretize to build a tensor mesh
             delta_z = xyz_ref[:, 2].max() - xyz_ref[:, 2]
-            xyz_ref = xyz_ref[delta_z < self.depth_core.value, :]
+            xyz_ref[delta_z > self.depth_core.value, 2] = (
+                xyz_ref[:, 2].max() - self.depth_core.value
+            )
             depth_core = (
                 self.depth_core.value
                 - (xyz_ref[:, 2].max() - xyz_ref[:, 2].min())
                 + h[2]
             )
-            mesh = discretize.utils.meshutils.mesh_builder_xyz(
+            mesh = mesh_utils.mesh_builder_xyz(
                 xyz_ref,
                 h,
                 padding_distance=[
@@ -417,6 +464,8 @@ class DataInterpolation(ObjectDataSelection):
 
             xyz_out = self.object_out.centroids.copy()
 
+        xyz_out_orig = xyz_out.copy()
+
         values, sign, dtype = {}, {}, {}
         for field in self.data.value:
             model_in = object_from.get_data(field)[0]
@@ -430,6 +479,7 @@ class DataInterpolation(ObjectDataSelection):
                 sign[field] = np.ones_like(values[field])
 
         values_interp = {}
+        rad, ind = tree.query(xyz_out)
         if self.method.value == "Linear":
 
             for key, value in values.items():
@@ -439,41 +489,34 @@ class DataInterpolation(ObjectDataSelection):
         elif self.method.value == "Inverse Distance":
 
             angle = np.deg2rad((450.0 - np.asarray(self.skew_angle.value)) % 360.0)
-
             rotation = np.r_[
                 np.c_[np.cos(angle), np.sin(angle)],
                 np.c_[-np.sin(angle), np.cos(angle)],
             ]
-
             center = np.mean(xyz, axis=0).reshape((3, 1))
             xyz -= np.kron(center, np.ones(xyz.shape[0])).T
             xyz[:, :2] = np.dot(rotation, xyz[:, :2].T).T
             xyz[:, 1] *= self.skew_factor.value
-
-            tree = cKDTree(xyz)
-
             xyz_out -= np.kron(center, np.ones(xyz_out.shape[0])).T
             xyz_out[:, :2] = np.dot(rotation, xyz_out[:, :2].T).T
             xyz_out[:, 1] *= self.skew_factor.value
+            vals, ind_inv = weighted_average(
+                xyz,
+                xyz_out,
+                list(values.values()),
+                threshold=1e-1,
+                n=8,
+                return_indices=True,
+            )
 
-            # Find nearest cells
-            rad, ind = tree.query(xyz_out, 8)
-
-            for key, value in values.items():
-                values_interp[key] = np.zeros(xyz_out.shape[0])
-                weight = np.zeros(xyz_out.shape[0])
-
-                for ii in range(8):
-                    values_interp[key] += value[ind[:, ii]] / (rad[:, ii] + 1e-1)
-                    weight += 1.0 / (rad[:, ii] + 1e-1)
-
-                values_interp[key] /= weight
-                sign[key] = sign[key][ind[:, 0]]
+            for key, val in zip(list(values.keys()), vals):
+                values_interp[key] = val
+                sign[key] = sign[key][ind_inv[:, 0]]
 
         else:
             # Find nearest cells
             for key, value in values.items():
-                rad, ind = tree.query(xyz_out)
+
                 values_interp[key] = value[ind]
                 sign[key] = sign[key][ind]
 
@@ -482,31 +525,15 @@ class DataInterpolation(ObjectDataSelection):
                 values_interp[key] = sign[key] * np.exp(values_interp[key])
 
             values_interp[key][np.isnan(values_interp[key])] = self.no_data_value.value
+            values_interp[key][rad > self.max_distance.value] = self.no_data_value.value
 
-            if self.method.value == "Inverse Distance":
-                values_interp[key][
-                    rad[:, 0] > self.max_distance.value
-                ] = self.no_data_value.value
-                if self.max_depth.value is not None:
-                    values_interp[key][
-                        np.abs(xyz_out[:, 2] - xyz[ind[:, 0], 2]) > self.max_depth.value
-                    ] = self.no_data_value.value
+        # if hasattr(self.object_out, "centroids"):
+        #     xyz_out = self.object_out.centroids
+        # elif hasattr(self.object_out, "vertices"):
+        #     xyz_out = self.object_out.vertices
 
-            else:
-                values_interp[key][
-                    rad > self.max_distance.value
-                ] = self.no_data_value.value
-
-                if self.max_depth.value is not None:
-                    values_interp[key][
-                        np.abs(xyz_out[:, 2] - xyz[ind, 2]) > self.max_depth.value
-                    ] = self.no_data_value.value
-
-        if hasattr(self.object_out, "centroids"):
-            xyz_out = self.object_out.centroids
-        elif hasattr(self.object_out, "vertices"):
-            xyz_out = self.object_out.vertices
-
+        top = np.zeros(xyz_out.shape[0], dtype="bool")
+        bottom = np.zeros(xyz_out.shape[0], dtype="bool")
         if self.topography.options.value == "Object" and self.workspace.get_entity(
             self.topography.objects.value
         ):
@@ -524,24 +551,32 @@ class DataInterpolation(ObjectDataSelection):
                 topo[:, 2] = topo_obj.get_data(self.topography.data.value)[0].values
 
             lin_interp = LinearNDInterpolator(topo[:, :2], topo[:, 2])
-            z_interp = lin_interp(xyz_out[:, :2])
+            z_interp = lin_interp(xyz_out_orig[:, :2])
 
             ind_nan = np.isnan(z_interp)
             if any(ind_nan):
                 tree = cKDTree(topo[:, :2])
-                _, ind = tree.query(xyz_out[ind_nan, :2])
+                _, ind = tree.query(xyz_out_orig[ind_nan, :2])
                 z_interp[ind_nan] = topo[ind, 2]
 
-            for key in values_interp.keys():
-                values_interp[key][xyz_out[:, 2] > z_interp] = self.no_data_value.value
+            top = xyz_out_orig[:, 2] > z_interp
+            if self.max_depth.value is not None:
+                bottom = np.abs(xyz_out_orig[:, 2] - z_interp) > self.max_depth.value
+
         elif (
             self.topography.options.value == "Constant"
             and self.topography.constant.value is not None
         ):
-            for key in values_interp.keys():
-                values_interp[key][
-                    xyz_out[:, 2] > self.topography.constant.value
-                ] = self.no_data_value.value
+            top = xyz_out_orig[:, 2] > self.topography.constant.value
+            if self.max_depth.value is not None:
+                bottom = (
+                    np.abs(xyz_out_orig[:, 2] - self.topography.constant.value)
+                    > self.max_depth.value
+                )
+
+        for key in values_interp.keys():
+            values_interp[key][top] = self.no_data_value.value
+            values_interp[key][bottom] = self.no_data_value.value
 
         if self.xy_extent.value is not None and self.workspace.get_entity(
             self.xy_extent.value
@@ -556,7 +591,7 @@ class DataInterpolation(ObjectDataSelection):
                 xy_ref = xy_ref.vertices
 
             tree = cKDTree(xy_ref[:, :2])
-            rad, _ = tree.query(xyz_out[:, :2])
+            rad, _ = tree.query(xyz_out_orig[:, :2])
             for key in values_interp.keys():
                 values_interp[key][
                     rad > self.max_distance.value
@@ -575,10 +610,10 @@ class DataInterpolation(ObjectDataSelection):
             )
 
         if self.live_link.value:
-            self.live_link_output(self.object_out)
+            self.live_link_output(self.export_directory.selected_path, self.object_out)
 
         self.workspace.finalize()
 
-    def object_pick(self):
-        if self.objects.value in self.xy_reference.options:
+    def object_pick(self, _):
+        if self.objects.value in list(dict(self.xy_reference.options).values()):
             self.xy_reference.value = self.objects.value

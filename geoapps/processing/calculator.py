@@ -1,18 +1,27 @@
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
 import re
+
 import numpy
-from geoh5py.workspace import Workspace
 from geoh5py.groups import RootGroup
-from ipywidgets.widgets import HBox, Layout, VBox, Text, Textarea, Button
-from geoapps.selection import ObjectDataSelection
+from geoh5py.workspace import Workspace
+from ipywidgets.widgets import Button, HBox, Layout, Text, Textarea, VBox
+
 from geoapps.plotting import plot_plan_data_selection
+from geoapps.selection import ObjectDataSelection
 
 
 class Calculator(ObjectDataSelection):
     defaults = {
         "h5file": "../../assets/FlinFlon.geoh5",
-        "objects": "geochem",
+        "objects": "{79b719bc-d996-4f52-9af0-10aa9c7bb941}",
         "data": ["Al2O3", "CaO"],
-        "equation": "{NewChannel} = {Al2O3} + numpy.cos({CaO} / numpy.max({CaO}) * numpy.pi)",
+        "equation": "{NewChannel} = {Al2O3} + numpy.cos({CaO} / 30.0 * numpy.pi)",
     }
 
     def __init__(self, **kwargs):
@@ -35,7 +44,10 @@ class Calculator(ObjectDataSelection):
             [
                 self.project_panel,
                 self.data_panel,
-                VBox([self.equation], layout=Layout(width="100%"),),
+                VBox(
+                    [self.equation],
+                    layout=Layout(width="100%"),
+                ),
                 self.output_panel,
             ]
         )
@@ -82,9 +94,9 @@ class Calculator(ObjectDataSelection):
         self._workspace = workspace
         self._h5file = workspace.h5file
         self.update_objects_list()
-        self.store._workspace = self.workspace
-        self.store.objects = self.objects
-        self.store.update_data_list(None)
+        # self.store._workspace = self.workspace
+        # self.store.objects = self.objects
+        # self.store.update_data_list(None)
 
     def click_use(self, _):
         """
@@ -132,7 +144,7 @@ class Calculator(ObjectDataSelection):
         if self.live_link.value:
             while not isinstance(obj.parent, RootGroup):
                 obj = obj.parent
-            self.live_link_output(obj)
+            self.live_link_output(self.export_directory.selected_path, obj)
 
         self.workspace.finalize()
 

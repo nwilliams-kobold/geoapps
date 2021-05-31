@@ -1,16 +1,25 @@
-from os import path, mkdir
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
 import re
-import osr
+from os import mkdir, path
+
 import discretize
-from ipywidgets import Dropdown, Text, FloatText, RadioButtons, Textarea, Layout
 import matplotlib.pyplot as plt
 import numpy as np
 from geoh5py.objects import BlockModel, Curve, Octree
 from geoh5py.workspace import Workspace
+from ipywidgets import Dropdown, FloatText, Layout, RadioButtons, Text, Textarea
 from ipywidgets.widgets import HBox, VBox
+from osgeo import osr
+
 from geoapps.plotting import plot_plan_data_selection
 from geoapps.selection import ObjectDataSelection
-from geoapps.utils import (
+from geoapps.utils.utils import (
     export_curve_2_shapefile,
     export_grid_2_geotiff,
     object_2_dataframe,
@@ -28,7 +37,7 @@ class Export(ObjectDataSelection):
     defaults = {
         "select_multiple": True,
         "h5file": "../../assets/FlinFlon.geoh5",
-        "objects": "Gravity_Magnetics_drape60m",
+        "objects": "{538a7eb1-2218-4bec-98cc-0a759aa0ef4f}",
         "data": ["Airborne_Gxx"],
         "epsg_code": "EPSG:26914",
         "file_type": "geotiff",
@@ -42,18 +51,19 @@ class Export(ObjectDataSelection):
             value="csv",
             description="Export type",
         )
-        self._data_type = RadioButtons(options=["float", "RGB",], description="Type:")
+        self._data_type = RadioButtons(
+            options=[
+                "float",
+                "RGB",
+            ],
+            description="Type:",
+        )
         self._no_data_value = FloatText(
             description="No-Data-Value",
             value=-99999,
-            style={"description_width": "initial"},
         )
-        self._epsg_code = Text(
-            description="Projection:", indent=False, continuous_update=False
-        )
-        self._export_as = Text(
-            description="Save as:", indent=False, continuous_update=False
-        )
+        self._epsg_code = Text(description="Projection:", continuous_update=False)
+        self._export_as = Text(description="Save as:", continuous_update=False)
         self._wkt_code = Textarea(
             description="WKT:", continuous_update=False, layout=Layout(width="75%")
         )
@@ -68,7 +78,11 @@ class Export(ObjectDataSelection):
         self.file_type.observe(update_options)
 
         def update_name(_):
-            self.export_as.value = self.objects.value
+            self.export_as.value = [
+                key
+                for key, value in self.objects.options
+                if value == self.objects.value
+            ][0]
 
         self.objects.observe(update_name, names="value")
         super().__init__(**kwargs)
@@ -117,7 +131,11 @@ class Export(ObjectDataSelection):
         """
         if getattr(self, "_data_type", None) is None:
             self._data_type = RadioButtons(
-                options=["float", "RGB",], description="Type:"
+                options=[
+                    "float",
+                    "RGB",
+                ],
+                description="Type:",
             )
 
         return self._data_type
@@ -128,7 +146,10 @@ class Export(ObjectDataSelection):
         ipywidgets.FloatText()
         """
         if getattr(self, "_no_data_value", None) is None:
-            self._no_data_value = FloatText(description="no-data-value", value=-99999,)
+            self._no_data_value = FloatText(
+                description="no-data-value",
+                value=-99999,
+            )
         return self._no_data_value
 
     @property
@@ -137,9 +158,7 @@ class Export(ObjectDataSelection):
         ipywidgets.Text()
         """
         if getattr(self, "_epsg_code", None) is None:
-            self._epsg_code = Text(
-                description="EPSG code:", indent=False, disabled=False
-            )
+            self._epsg_code = Text(description="EPSG code:", disabled=False)
         return self._epsg_code
 
     @property
@@ -149,9 +168,12 @@ class Export(ObjectDataSelection):
         """
         if getattr(self, "_export_as", None) is None:
             self._export_as = Text(
-                value=self.objects.value,
+                value=[
+                    key
+                    for key, value in self.objects.options
+                    if value == self.objects.value
+                ][0],
                 description="Save as:",
-                indent=False,
                 disabled=False,
             )
         return self._export_as
@@ -263,9 +285,12 @@ class Export(ObjectDataSelection):
 
                     if self.data_type.value == "RGB":
                         fig, ax = plt.figure(), plt.subplot()
-                        plt.gca().set_visible(False)
+
+                        if not self.plot_result:
+                            plt.gca().set_visible(False)
+
                         ax, im, _, _, _ = plot_plan_data_selection(
-                            entity, entity.get_data(key)[0], ax=ax
+                            entity, entity.get_data(key)[0], axis=ax
                         )
                         plt.colorbar(im, fraction=0.02)
                         plt.savefig(
@@ -279,6 +304,8 @@ class Export(ObjectDataSelection):
                             dpi=300,
                             bbox_inches="tight",
                         )
+                        if not self.plot_result:
+                            plt.close(fig)
 
                     print(f"Object saved to {name}")
 

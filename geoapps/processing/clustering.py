@@ -1,26 +1,32 @@
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from geoh5py.data import ReferencedData
+from IPython.display import display
 from ipywidgets import (
     Button,
     Checkbox,
-    VBox,
-    HBox,
-    interactive_output,
     ColorPicker,
     Dropdown,
-    ToggleButtons,
-    Layout,
-    IntSlider,
     FloatText,
-    Label,
+    HBox,
+    IntSlider,
+    ToggleButtons,
+    VBox,
+    interactive_output,
 )
-from IPython.display import display
-import plotly.graph_objects as go
-import numpy as np
-from geoapps.plotting import ScatterPlots
-from geoapps.utils import random_sampling, hex_to_rgb, colors
-from sklearn.cluster import KMeans
 from scipy.spatial import cKDTree
-import pandas as pd
-from geoh5py.data import ReferencedData
+from sklearn.cluster import KMeans
+
+from geoapps.plotting import ScatterPlots
+from geoapps.utils.utils import colors, hex_to_rgb, random_sampling
 
 
 class Clustering(ScatterPlots):
@@ -30,7 +36,7 @@ class Clustering(ScatterPlots):
 
     defaults = {
         "h5file": r"../../assets/FlinFlon.geoh5",
-        "objects": "geochem",
+        "objects": "{79b719bc-d996-4f52-9af0-10aa9c7bb941}",
         "data": ["Al2O3", "CaO", "V", "MgO", "Ba"],
         "x": "Al2O3",
         "y": "CaO",
@@ -88,7 +94,10 @@ class Clustering(ScatterPlots):
         self.boxplot_panel = VBox([self.channels_plot_options])
         self.stats_table = interactive_output(
             self.make_stats_table,
-            {"channels": self.data, "show": self.plotting_options,},
+            {
+                "channels": self.data,
+                "show": self.plotting_options,
+            },
         )
 
         super().__init__(**kwargs)
@@ -109,7 +118,9 @@ class Clustering(ScatterPlots):
         self.reference_filter_value.observe(self.update_choices, names="value")
         for ii in range(self.n_clusters.max):
             self.color_pickers[ii] = ColorPicker(
-                concise=False, description=("Color"), value=colors[ii],
+                concise=False,
+                description=("Color"),
+                value=colors[ii],
             )
             self.color_pickers[ii].uid = ii
             self.color_pickers[ii].observe(self.update_colormap, names="value")
@@ -145,7 +156,16 @@ class Clustering(ScatterPlots):
                         self.downsampling,
                         self.reference_filter,
                         self.reference_filter_value,
-                        HBox([self.n_clusters, VBox([self.clusters_panel,])],),
+                        HBox(
+                            [
+                                self.n_clusters,
+                                VBox(
+                                    [
+                                        self.clusters_panel,
+                                    ]
+                                ),
+                            ],
+                        ),
                     ]
                 ),
                 self.refresh_clusters,
@@ -621,7 +641,7 @@ class Clustering(ScatterPlots):
                 }
 
             if self.live_link.value:
-                self.live_link_output(obj)
+                self.live_link_output(self.export_directory.selected_path, obj)
 
             self.workspace.finalize()
 
@@ -707,10 +727,13 @@ class Clustering(ScatterPlots):
                 np.min([self.downsampling.value, len(active_set)]),
                 bandwidth=2.0,
                 rtol=1e0,
-                method="hist",
+                method="histogram",
             )
             self._indices = active_set[samples]
-            self.dataframe = pd.DataFrame(values[self.indices, :], columns=fields,)
+            self.dataframe = pd.DataFrame(
+                values[self.indices, :],
+                columns=fields,
+            )
             tree = cKDTree(self.dataframe.values)
             inactive_set = np.ones(self.n_values, dtype="bool")
             inactive_set[self.indices] = False
