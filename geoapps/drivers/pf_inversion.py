@@ -712,16 +712,15 @@ def inversion(input_file):
             alphas[0], alphas[4], alphas[8] = 0, 0, 0
             reference_model = [0.0]
     else:
-        assert (
-            forward_only == False
-        ), "A reference model/value must be provided for forward modeling"
         reference_model = [0.0]
 
     if "starting_model" in list(input_dict.keys()):
         if "model" in list(input_dict["starting_model"].keys()):
             starting_model = input_dict["starting_model"]["model"]
+            print(starting_model)
+            print(starting_model["name"])
             input_mesh = workspace.get_entity(
-                uuid.UUID(list(starting_model.keys())[0])
+                uuid.UUID(starting_model["name"])
             )[0]
 
             if isinstance(input_mesh, BlockModel):
@@ -736,6 +735,10 @@ def inversion(input_file):
                 starting_model.shape[0] == 1 or starting_model.shape[0] == 3
             ), "Start model needs to be a scalar or 3 component vector"
     else:
+        assert (
+            forward_only == False
+        ), "A reference model/value must be provided for forward modeling"
+
         starting_model = [1e-4]
 
     if "lower_bound" in list(input_dict.keys()):
