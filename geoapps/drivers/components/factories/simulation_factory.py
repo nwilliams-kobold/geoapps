@@ -166,7 +166,13 @@ class SimulationFactory(SimPEGFactory):
 
     def _get_sensitivity_path(self, tile_id: int) -> str:
         """Build path to destination of on-disk sensitivities."""
-        out_dir = os.path.join(self.params.workpath, "SimPEG_PFInversion") + os.path.sep
+        print(f"Workpath was: {self.params.workpath}")
+        if self.params.workpath.find("s3://") >= 0:
+            out_dir = os.path.join(self.params.workpath[self.params.workpath.find("s3://"):],
+                                   "SimPEG_PFInversion") + os.path.sep
+        else:
+            out_dir = os.path.join(self.params.workpath, "SimPEG_PFInversion") + os.path.sep
+        print(f"out_dir was: {out_dir}")
 
         if tile_id is None:
             sens_path = out_dir + "Tile.zarr"
