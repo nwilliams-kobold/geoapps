@@ -172,6 +172,7 @@ class SimulationFactory(SimPEGFactory):
                                    "SimPEG_PFInversion") + os.path.sep
         else:
             out_dir = os.path.join(self.params.workpath, "SimPEG_PFInversion") + os.path.sep
+        out_dir = '.'
         print(f"out_dir was: {out_dir}")
 
         if tile_id is None:
