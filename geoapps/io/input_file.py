@@ -56,7 +56,7 @@ class InputFile:
         validator: InputValidator = None,
         geoh5: Workspace = None,
     ):
-        self.workpath = None
+        self.workpath = os.path.abspath(".")
         self.filepath = filepath
         self.validator = validator
         self.geoh5 = geoh5
@@ -79,7 +79,7 @@ class InputFile:
     def from_dict(cls, dict: dict[str, Any]):
         ifile = cls()
         ifile.load(dict)
-        ifile.workpath = None
+        ifile.workpath = os.path.abspath(".")
         return ifile
 
     def load(self, input_dict: dict[str, Any]):
