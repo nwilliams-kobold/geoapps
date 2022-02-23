@@ -56,7 +56,7 @@ class InputFile:
         validator: InputValidator = None,
         geoh5: Workspace = None,
     ):
-        self.workpath = os.path.abspath(".")
+        self.workpath = None
         self.filepath = filepath
         self.validator = validator
         self.geoh5 = geoh5
@@ -79,7 +79,7 @@ class InputFile:
     def from_dict(cls, dict: dict[str, Any]):
         ifile = cls()
         ifile.load(dict)
-        ifile.workpath = os.path.abspath(".")
+        ifile.workpath = None
         return ifile
 
     def load(self, input_dict: dict[str, Any]):
@@ -129,11 +129,13 @@ class InputFile:
                 self._workpath: str = (
                     os.path.dirname(os.path.abspath(path)) + os.path.sep
                 )
+        print(f"Check 1: {self._workpath}")
         return self._workpath
 
     @workpath.setter
     def workpath(self, v):
         self._workpath = v
+        print(f"Check 2: {self._workpath}")
 
     def write_ui_json(
         self,
