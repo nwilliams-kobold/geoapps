@@ -115,6 +115,7 @@ class InputFile:
 
     @property
     def workpath(self):
+        print(f"Check 0: {self._workpath}")
         if getattr(self, "_workpath", None) is None:
             path = None
             if getattr(self, "_filepath", None) is not None:
