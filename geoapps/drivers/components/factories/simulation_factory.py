@@ -173,7 +173,7 @@ class SimulationFactory(SimPEGFactory):
         else:
             out_dir = os.path.join(self.params.workpath, "SimPEG_PFInversion") + os.path.sep
         # out_dir = "s3://kobold-scratch/nickw/Dask_test/01_MCR_SatNight_Simple/Test"
-        out_dir = "./"
+        # out_dir = "./"
 
         print(f"out_dir is: {out_dir}")
 

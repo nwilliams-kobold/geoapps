@@ -118,7 +118,7 @@ class Params:
     @workpath.setter
     def workpath(self, val):
         self._workpath = val
-        print(f"Check 3: {self._workpath}")
+        # print(f"Check 3: {self._workpath}")
 
     @property
     def required_parameters(self):
@@ -265,7 +265,7 @@ class Params:
             return
         self.associations = ifile.associations
         self.workpath = ifile.workpath
-        print(f"Check 4: {self.workpath}")
+        # print(f"Check 4: {self.workpath}")
 
         self._input_file = ifile
 

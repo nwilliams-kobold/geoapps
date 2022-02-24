@@ -115,7 +115,7 @@ class InputFile:
 
     @property
     def workpath(self):
-        print(f"Check 0: {self._workpath}")
+        # print(f"Check 0: {self._workpath}")
         if getattr(self, "_workpath", None) is None:
             path = None
             if getattr(self, "_filepath", None) is not None:
@@ -130,13 +130,13 @@ class InputFile:
                 self._workpath: str = (
                     os.path.dirname(os.path.abspath(path)) + os.path.sep
                 )
-        print(f"Check 1: {self._workpath}")
+        # print(f"Check 1: {self._workpath}")
         return self._workpath
 
     @workpath.setter
     def workpath(self, v):
         self._workpath = v
-        print(f"Check 2: {self._workpath}")
+        # print(f"Check 2: {self._workpath}")
 
     def write_ui_json(
         self,
