@@ -112,11 +112,16 @@ class InversionDriver:
             self.workspace, self.params, self.inversion_mesh
         )
 
+        # Tile locations
+        self.tiles = self.get_tiles()  # [np.arange(len(self.survey.source_list))]#
+
+        self.nTiles = len(self.tiles)
+
         # TODO Need to setup/test workers with address
         if self.params.distributed_workers is not None:
-            assert len(self.tiles) == len(self.params.distributed_workers), (
+            assert len(self.nTiles) == len(self.params.distributed_workers), (
                 f"List of workers ({len(self.params.distributed_workers)})",
-                " must match number of tiles ({len(self.tiles)})",
+                " must match number of tiles ({len(self.nTiles)})",
             )
             try:
                 get_client()
@@ -141,10 +146,6 @@ class InversionDriver:
         # Create SimPEG Survey object
         self.survey = self.inversion_data._survey
 
-        # Tile locations
-        self.tiles = self.get_tiles()  # [np.arange(len(self.survey.source_list))]#
-
-        self.nTiles = len(self.tiles)
         print(f"Setting up {self.nTiles} tiles ...")
         # Build tiled misfits and combine to form global misfit
         self.local_misfits = self.get_tile_misfits(self.tiles)
