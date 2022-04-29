@@ -118,12 +118,7 @@ class InversionDriver:
         self.nTiles = len(self.tiles)
 
         # TODO Need to setup/test workers with address
-        print(type(self.params.distributed_workers))
         if self.params.distributed_workers is not None:
-            assert self.nTiles == len([self.params.distributed_workers]), (
-                f"List of workers ({len(self.params.distributed_workers)}:{type(self.params.distributed_workers)}:{self.params.distributed_workers})",
-                f" must match number of tiles ({self.nTiles})",
-            )
             try:
                 get_client()
             except ValueError:
@@ -358,7 +353,16 @@ class InversionDriver:
             if self.params.distributed_workers is None:
                 lsim.workers = None
             else:
-                lsim.workers = self.params.distributed_workers[tile_id]
+                w = [
+                    a.strip()
+                    for a in self.params.distributed_workers.replace("'", "").split(",")
+                ]
+                print(w)
+                assert self.nTiles == len(w), (
+                    f"List of workers ({len(w)})",
+                    f" must match number of tiles ({self.nTiles})",
+                )
+                lsim.workers = w[tile_id]
             if self.inversion_type == "induced polarization":
                 lsim.sigma = lsim.sigmaMap * lmap * self.models.conductivity
 
