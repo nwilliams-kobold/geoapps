@@ -112,6 +112,11 @@ class InversionDriver:
             self.workspace, self.params, self.inversion_mesh
         )
 
+        # Tile locations
+        self.tiles = self.get_tiles()  # [np.arange(len(self.survey.source_list))]#
+
+        self.nTiles = len(self.tiles)
+
         # TODO Need to setup/test workers with address
         if self.params.distributed_workers is not None:
             try:
@@ -137,10 +142,6 @@ class InversionDriver:
         # Create SimPEG Survey object
         self.survey = self.inversion_data._survey
 
-        # Tile locations
-        self.tiles = self.get_tiles()  # [np.arange(len(self.survey.source_list))]#
-
-        self.nTiles = len(self.tiles)
         print(f"Setting up {self.nTiles} tiles ...")
         # Build tiled misfits and combine to form global misfit
         self.local_misfits = self.get_tile_misfits(self.tiles)
@@ -349,7 +350,19 @@ class InversionDriver:
             )
 
             # TODO Parse workers to simulations
-            lsim.workers = self.params.distributed_workers
+            if self.params.distributed_workers is None:
+                lsim.workers = None
+            else:
+                w = [
+                    a.strip()
+                    for a in self.params.distributed_workers.replace("'", "").split(",")
+                ]
+                print(w)
+                assert self.nTiles == len(w), (
+                    f"List of workers ({len(w)})",
+                    f" must match number of tiles ({self.nTiles})",
+                )
+                lsim.workers = w[tile_id]
             if self.inversion_type == "induced polarization":
                 lsim.sigma = lsim.sigmaMap * lmap * self.models.conductivity
 

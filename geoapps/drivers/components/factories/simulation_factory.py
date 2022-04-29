@@ -168,12 +168,22 @@ class SimulationFactory(SimPEGFactory):
         """Build path to destination of on-disk sensitivities."""
         print(f"Workpath was: {self.params.workpath}")
         if self.params.workpath.find("s3://") >= 0:
-            out_dir = os.path.join(self.params.workpath[self.params.workpath.find("s3://"):],
-                                   "SimPEG_PFInversion") + os.path.sep
+            out_dir = (
+                os.path.join(
+                    self.params.workpath[self.params.workpath.find("s3://") :],
+                    "SimPEG_PFInversion",
+                )
+                + os.path.sep
+            )
         else:
-            out_dir = os.path.join(self.params.workpath, "SimPEG_PFInversion") + os.path.sep
+            out_dir = (
+                os.path.join(self.params.workpath, "SimPEG_PFInversion") + os.path.sep
+            )
+
+        print(f"out_dir is: {out_dir}")
+
         # out_dir = "s3://kobold-scratch/nickw/Dask_test/01_MCR_SatNight_Simple/Test"
-        # out_dir = "./"
+        out_dir = "./"
 
         print(f"out_dir is: {out_dir}")
 
@@ -181,5 +191,7 @@ class SimulationFactory(SimPEGFactory):
             sens_path = out_dir + "Tile.zarr"
         else:
             sens_path = out_dir + "Tile" + str(tile_id) + ".zarr"
+
+        print(f"sens_path is: {sens_path}")
 
         return sens_path
