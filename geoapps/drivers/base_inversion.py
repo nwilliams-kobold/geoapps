@@ -118,10 +118,11 @@ class InversionDriver:
         self.nTiles = len(self.tiles)
 
         # TODO Need to setup/test workers with address
+        print(type(self.params.distributed_workers))
         if self.params.distributed_workers is not None:
             assert self.nTiles == len([self.params.distributed_workers]), (
-                f"List of workers ({len(self.params.distributed_workers)}:{type(self.params.distributed_workers)}:{[self.params.distributed_workers]})",
-                " must match number of tiles ({self.nTiles})",
+                f"List of workers ({len(self.params.distributed_workers)}:{type(self.params.distributed_workers)}:{self.params.distributed_workers})",
+                f" must match number of tiles ({self.nTiles})",
             )
             try:
                 get_client()
