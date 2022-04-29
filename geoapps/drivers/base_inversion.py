@@ -119,8 +119,8 @@ class InversionDriver:
 
         # TODO Need to setup/test workers with address
         if self.params.distributed_workers is not None:
-            assert self.nTiles == len(self.params.distributed_workers), (
-                f"List of workers ({len(self.params.distributed_workers)}:{self.params.distributed_workers})",
+            assert self.nTiles == len([self.params.distributed_workers]), (
+                f"List of workers ({len([self.params.distributed_workers])}:{[self.params.distributed_workers]})",
                 " must match number of tiles ({self.nTiles})",
             )
             try:
