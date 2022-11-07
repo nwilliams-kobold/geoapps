@@ -3,7 +3,7 @@ Welcome to **geoapps** - Open-source applications in geosciences
 
 <img align="right" width="50%" src="https://github.com/MiraGeoscience/geoapps/raw/develop/docs/images/index_page.png">
 
-In short
+In short:
 --------
 
 The **geoapps** project has been created by [Mira Geoscience](https://mirageoscience.com/) for the development and sharing of open-source
