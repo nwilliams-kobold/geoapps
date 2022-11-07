@@ -1,12 +1,14 @@
 {
-    "title": "SimPEG gravity Forward",
+    "title": "Gravity Forward",
+    "documentation": "https://geoapps.readthedocs.io/en/stable/content/applications/grav_mag_inversion.html",
+    "icon": "surveyairbornegravity",
     "inversion_type": "gravity",
     "geoh5": "",
     "forward_only": true,
     "topography_object": {
         "main": true,
         "group": "Topography",
-        "label": "Object",
+        "label": "Topography",
         "meshType": [
             "{202C5DB1-A56D-4004-9CAD-BAAFD8899406}",
             "{6A057FDC-B355-11E3-95BE-FD84A7FFCB88}",
@@ -17,14 +19,18 @@
         "value": ""
     },
     "topography": {
-        "association": "Vertex",
+        "association": [
+            "Vertex",
+            "Cell"
+        ],
         "dataType": "Float",
         "group": "Topography",
         "main": true,
         "optional": true,
         "enabled": false,
         "isValue": true,
-        "label": "Elevation",
+        "label": "Elevation adjustment",
+        "tooltip": "Adjust elevation given from topography object",
         "parent": "topography_object",
         "property": "",
         "value": 0.0
@@ -43,149 +49,6 @@
         ],
         "value": ""
     },
-    "gz_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gz",
-        "value": false
-    },
-    "guv_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Guv",
-        "value": false
-    },
-    "gxy_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gxy (Gne)",
-        "value": false
-    },
-    "gxx_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gxx",
-        "value": false
-    },
-    "gyy_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gyy",
-        "value": false
-    },
-    "gzz_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gzz",
-        "value": false
-    },
-    "gxz_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gxz",
-        "value": false
-    },
-    "gyz_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gyz",
-        "value": false
-    },
-    "gx_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gx",
-        "value": false
-    },
-    "gy_channel_bool": {
-        "group": "Data",
-        "main": true,
-        "label": "Use Gy",
-        "value": false
-    },
-    "starting_model_object": {
-        "group": "Starting Model",
-        "main": true,
-        "meshType": [
-            "{202C5DB1-A56D-4004-9CAD-BAAFD8899406}",
-            "{6A057FDC-B355-11E3-95BE-FD84A7FFCB88}",
-            "{F26FEBA3-ADED-494B-B9E9-B2BBCBE298E1}",
-            "{48F5054A-1C5C-4CA4-9048-80F36DC60A06}",
-            "{b020a277-90e2-4cd7-84d6-612ee3f25051}",
-            "{4ea87376-3ece-438b-bf12-3479733ded46}"
-        ],
-        "optional": true,
-        "enabled": false,
-        "label": "Object",
-        "value": ""
-    },
-    "starting_model": {
-        "association": [
-            "Cell",
-            "Vertex"
-        ],
-        "dataType": "Float",
-        "group": "Starting Model",
-        "main": true,
-        "isValue": true,
-        "parent": "starting_model_object",
-        "label": "Density (g/cc)",
-        "property": "",
-        "value": 0.0
-    },
-    "tile_spatial": {
-        "group": "Receivers location options",
-        "label": "Number of tiles",
-        "parent": "data_object",
-        "isValue": true,
-        "property": "",
-        "value": 1,
-        "min": 1,
-        "max": 1000
-    },
-    "output_tile_files": false,
-    "z_from_topo": {
-        "main": false,
-        "group": "Receivers location options",
-        "label": "Take z from topography",
-        "value": false
-    },
-    "receivers_radar_drape": {
-        "association": [
-            "Cell",
-            "Vertex"
-        ],
-        "dataType": "Float",
-        "main": false,
-        "group": "Receivers location options",
-        "label": "Drape receivers with radar channel",
-        "optional": true,
-        "parent": "data_object",
-        "value": "",
-        "enabled": false
-    },
-    "receivers_offset_x": {
-        "group": "Receivers location options",
-        "main": false,
-        "label": "Receiver X offset (m)",
-        "value": 0.0,
-        "enabled": true
-    },
-    "receivers_offset_y": {
-        "group": "Receivers location options",
-        "main": false,
-        "label": "Receiver Y offset (m)",
-        "value": 0.0,
-        "enabled": true
-    },
-    "receivers_offset_z": {
-        "group": "Receivers location options",
-        "main": false,
-        "label": "Receiver Z offset (m)",
-        "value": 0.0,
-        "enabled": true
-    },
-    "gps_receivers_offset": "",
     "resolution": {
         "min": 0.0,
         "group": "Data pre-processing",
@@ -194,116 +57,132 @@
         "label": "Downsampling resolution",
         "value": 0.0
     },
-    "max_chunk_size": {
-        "min": 0,
+    "z_from_topo": {
         "group": "Data pre-processing",
+        "label": "Take z from topography",
+        "tooltip": "Sets survey elevation to topography before any offsets are applied.",
+        "value": false
+    },
+    "receivers_radar_drape": {
+        "association": [
+            "Cell",
+            "Vertex"
+        ],
+        "dataType": "Float",
+        "group": "Data pre-processing",
+        "label": "Z radar offset",
+        "tooltip": "Apply a non-homogeneous offset to survey object from radar channel.",
         "optional": true,
-        "enabled": true,
-        "label": "Maximum chunk size",
-        "value": 128
+        "parent": "data_object",
+        "value": "",
+        "enabled": false
     },
-    "chunk_by_rows": {
+    "receivers_offset_x": {
         "group": "Data pre-processing",
-        "label": "Chunk by rows",
-        "value": true
-    },
-    "mesh": {
-        "group": "Mesh",
-        "main": true,
+        "label": "Receiver X offset (m)",
         "optional": true,
         "enabled": false,
+        "value": 0.0,
+        "visible": false
+    },
+    "receivers_offset_y": {
+        "group": "Data pre-processing",
+        "label": "Receiver Y offset (m)",
+        "optional": true,
+        "enabled": false,
+        "value": 0.0,
+        "visible": false
+    },
+    "receivers_offset_z": {
+        "group": "Data pre-processing",
+        "label": "Z static offset",
+        "optional": true,
+        "enabled": false,
+        "value": 0.0
+    },
+    "gps_receivers_offset": "",
+    "gz_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gz (mGal)",
+        "value": false
+    },
+    "gx_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gx (mGal)",
+        "value": false
+    },
+    "gy_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gy (mGal)",
+        "value": false
+    },
+    "guv_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Guv (Eo)",
+        "value": false
+    },
+    "gxy_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gxy/Gne (Eo)",
+        "value": false
+    },
+    "gxx_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gxx (Eo)",
+        "value": false
+    },
+    "gyy_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gyy (Eo)",
+        "value": false
+    },
+    "gzz_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gzz (Eo)",
+        "value": false
+    },
+    "gxz_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gxz (Eo)",
+        "value": false
+    },
+    "gyz_channel_bool": {
+        "group": "Data",
+        "main": true,
+        "label": "Gyz (Eo)",
+        "value": false
+    },
+    "mesh": {
+        "group": "Mesh and Models",
+        "main": true,
         "label": "Mesh",
         "meshType": "{4ea87376-3ece-438b-bf12-3479733ded46}",
         "value": ""
     },
-    "u_cell_size": {
-        "min": 0.0,
-        "group": "Mesh",
+    "starting_model": {
+        "association": [
+            "Cell",
+            "Vertex"
+        ],
+        "dataType": "Float",
+        "group": "Mesh and Models",
         "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "Easting core cell size (m)",
-        "value": 25.0
+        "isValue": true,
+        "parent": "mesh",
+        "label": "Initial Density (g/cc)",
+        "property": "",
+        "value": 0.001
     },
-    "v_cell_size": {
-        "min": 0.0,
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "Northing core cell size (m)",
-        "value": 25.0
-    },
-    "w_cell_size": {
-        "min": 0.0,
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "Vertical core cell size (m)",
-        "value": 25.0
-    },
-    "octree_levels_topo": {
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "octree levels topography",
-        "value": "0, 0, 4, 4"
-    },
-    "octree_levels_obs": {
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "octree levels observations",
-        "value": "4, 4, 4, 4"
-    },
-    "depth_core": {
-        "min": 0.0,
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "Depth of core refinement volume",
-        "value": 500.0
-    },
-    "max_distance": {
-        "min": 0.0,
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "Maximum padding distance",
-        "value": 5000.0
-    },
-    "horizontal_padding": {
-        "min": 0.0,
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "Horizontal padding",
-        "value": 1000.0
-    },
-    "vertical_padding": {
-        "min": 0.0,
-        "group": "Mesh",
-        "main": true,
-        "enabled": true,
-        "dependency": "mesh",
-        "dependencyType": "disabled",
-        "label": "Vertical padding",
-        "value": 1000.0
-    },
+    "output_tile_files": false,
     "window_center_x": {
         "group": "Data window",
         "enabled": false,
@@ -353,6 +232,29 @@
         "enabled": false,
         "label": "Number of cpu",
         "value": 1
+    },
+    "tile_spatial": {
+        "group": "Compute",
+        "label": "Number of tiles",
+        "parent": "data_object",
+        "isValue": true,
+        "property": "",
+        "value": 1,
+        "min": 1,
+        "max": 1000
+    },
+    "max_chunk_size": {
+        "min": 0,
+        "group": "Compute",
+        "optional": true,
+        "enabled": true,
+        "label": "Maximum chunk size",
+        "value": 128
+    },
+    "chunk_by_rows": {
+        "group": "Compute",
+        "label": "Chunk by rows",
+        "value": true
     },
     "out_group": {
         "label": "Results group name",
